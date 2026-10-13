@@ -1,3 +1,4 @@
+import {validateTheme} from './theme.mjs';
 export function validateHello(frame) {
     return frame && frame.protocolVersion === 2 && frame.type === 'hello'
         && ['adapter', 'cli'].includes(frame.role) ? frame.role : null;
@@ -16,6 +17,6 @@ export function validateCommand(frame, role) {
         && (!Number.isSafeInteger(a.requestId) || a.requestId < 0)) return false;
     if (frame.method === 'placementFailed' && (typeof a.reason !== 'string' || a.reason.length > 1024)) return false;
     if (frame.method === 'setGeometry' && ![a.width, a.height].every(n => Number.isSafeInteger(n) && n > 0)) return false;
-    if (frame.method === 'setTheme' && ![a.background, a.foreground].every(color => typeof color === 'string' && /^#[0-9a-f]{8}$/i.test(color))) return false;
+    if (frame.method === 'setTheme' && !validateTheme(a)) return false;
     return frame.method !== 'setAnimations' || typeof a.enabled === 'boolean';
 }

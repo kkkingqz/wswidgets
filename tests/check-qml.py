@@ -51,6 +51,18 @@ with tempfile.TemporaryDirectory(prefix="widgets-qml-") as temporary:
             assert not cli('setTheme', **colors)['ok'], 'CLI can replace desktop palette'
             assert not adapter.call('setTheme', **{**colors, 'background':'invalid'})['ok'], 'invalid palette accepted'
             assert adapter.call('setTheme', **colors)['result'], 'native theme rejected'
+            keys = ['normal','focus','hover','hover+focus','pressed','pressed+focus','pressed+hover','pressed+hover+focus',
+                    'checked','checked+focus','checked+hover','checked+hover+focus','checked+pressed','checked+pressed+focus',
+                    'checked+pressed+hover','checked+pressed+hover+focus','disabled']
+            buttons = {'states': {key: {'background':'#ff123456','foreground':'#80abcdef','borderColor':'#ff405060',
+                       'borderWidth':1,'focusColor':'#ffabcdef','focusWidth':2 if 'focus' in key else 0} for key in keys},
+                       'metrics': {'radius':8,'paddingTop':3,'paddingRight':24,'paddingBottom':3,'paddingLeft':24,
+                                   'minimumHeight':28,'transitionMs':0},
+                       'font': {'family':'Sans','pixelSize':14.5,'weight':700,'italic':False}}
+            assert adapter.call('setTheme', **colors, buttons=buttons)['result'], 'button theme rejected by runtime socket'
+            time.sleep(.05)
+            log.seek(0)
+            assert 'QML socket button applied: #ff123456/#80abcdef' in log.read(), 'socket button theme not rendered'
             assert not cli('show', id='unknown')['result']
             assert cli('show', id='example')['result']
             assert adapter.read()['state']['widgets']['example']['phase'] == 'preparing'

@@ -8,6 +8,7 @@ import {PanelButtons} from './lib/panelButtons.js';
 import {IpcClient} from './lib/ipcClient.js';
 import {WindowPlacement} from './lib/windowPlacement.js';
 import {MenuTheme} from './lib/menuTheme.js';
+import {readButtonTheme} from './lib/buttonTheme.js';
 import {validateManifest} from './lib/manifest.mjs';
 import {shouldDismiss, pointerDecision} from './lib/dismissal.mjs';
 import {buttonPresentation} from './lib/buttons.mjs';
@@ -60,8 +61,11 @@ export default class WorkstationWidgets extends Extension {
             this.placement = new WindowPlacement(this.client, this.buttons);
             // The real popup actor carries the selected Shell stylesheet and
             // inherited colors, including user themes and light/dark changes.
-            this.theme = new MenuTheme(this.client, Main.panel.statusArea.dateMenu.menu.box,
-                St.ThemeContext.get_for_stage(global.stage));
+            const popup=Main.panel.statusArea.dateMenu.menu.box;
+            const themeContext=St.ThemeContext.get_for_stage(global.stage);
+            this.theme = new MenuTheme(this.client, popup, themeContext, () => readButtonTheme(
+                pseudo => St.ThemeNode.new(themeContext, popup.get_theme_node(), null,
+                    St.Button.$gtype, null, 'button', pseudo, ''), themeContext.scale_factor));
             this.injections = new InjectionManager();
             this.injections.overrideMethod(Main.wm, '_shouldAnimateActor',
                 original => withoutWidgetEffects(original, () => this.effectSnapshot));

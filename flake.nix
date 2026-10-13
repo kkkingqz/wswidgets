@@ -42,6 +42,7 @@
         '';
         # The adapter keeps its own copy of the manifest validator.
         tests = assert builtins.readFile ./quickshell/framework/manifest.mjs == builtins.readFile ./extension/lib/manifest.mjs;
+          assert builtins.readFile ./quickshell/framework/theme.mjs == builtins.readFile ./extension/lib/theme.mjs;
           pkgs.runCommand "wswidgets-tests" { nativeBuildInputs = [ pkgs.python3 pkgs.gjs ]; } ''
             cp -r ${self} source
             chmod -R u+w source

@@ -3,6 +3,28 @@ import Quickshell
 import "framework"
 
 ShellRoot {
+    property var buttonProbe: null
+    function findClose(host) {
+        function find(item) {
+            if (item.objectName === "closeButton") return item;
+            for (const child of item.children || []) { const found=find(child); if (found) return found; }
+            return null;
+        }
+        return find(host.surface.contentItem);
+    }
+    function buttonPalette() {
+        const states={};
+        for (const key of ["normal","focus","hover","hover+focus","pressed","pressed+focus","pressed+hover","pressed+hover+focus",
+            "checked","checked+focus","checked+hover","checked+hover+focus","checked+pressed","checked+pressed+focus","checked+pressed+hover","checked+pressed+hover+focus","disabled"])
+            states[key]={background: "#ff203040",foreground:"#fff0f1f2",borderColor:"#ff405060",borderWidth:1,focusColor:"#ffabcdef",focusWidth:key.includes("focus")?2:0};
+        states.pressed.background="#ff607080";
+        states.disabled.background="#ff102030";
+        states.disabled.foreground="#80f0f1f2";
+        states.checked.background="#ff8090a0";
+        return {background:"#ff36363a",foreground:"#ffffffff",buttons:{states,
+            metrics:{radius:12,paddingTop:4,paddingRight:12,paddingBottom:4,paddingLeft:12,minimumHeight:32,transitionMs:150},
+            font:{family:"Sans",pixelSize:16,weight:400,italic:false}}};
+    }
     function backgroundOf(host) {
         function find(item) {
             if (item.color !== undefined) return item.color;
@@ -40,6 +62,15 @@ ShellRoot {
                 console.error("socket theme did not reach popup/content"); Qt.exit(1);
             }
             console.log("QML native theme applied: " + Style.background + "/" + Style.foreground);
+            if (Style.theme.buttons) {
+                if (!buttonProbe) buttonProbe=Qt.createComponent("controls/Button.qml").createObject(large.surface.contentItem,{text:"Socket probe"});
+                const state=Style.theme.buttons.states.normal;
+                if (!buttonProbe || !Qt.colorEqual(buttonProbe.appearance.background,state.background)
+                    || !Qt.colorEqual(buttonProbe.contentItem.color,state.foreground)) {
+                    console.error("socket button theme did not reach control"); Qt.exit(1); return;
+                }
+                console.log("QML socket button applied: " + buttonProbe.appearance.background + "/" + buttonProbe.contentItem.color);
+            }
         }
     }
     Timer {
@@ -71,6 +102,27 @@ ShellRoot {
             if (stage === 3 && panels.state.widgets.large.phase === "opening") return;
             if (stage === 4 && panels.state.widgets.large.phase === "closing") return;
             if (stage === 0) {
+                const component=Qt.createComponent("controls/Button.qml");
+                check(component.status===Component.Ready, "shared themed button missing: "+component.errorString());
+                buttonProbe=component.createObject(small.surface.contentItem,{text:"Probe"});
+                check(buttonProbe!==null,"shared button cannot instantiate");
+                Style.animationsEnabled=false;
+                check(Style.logicalFontSize(Qt.font({pointSize:11})) * 72 / 96 === 11,
+                    "point fonts lose precision through pixelSize conversion");
+                check(Style.buttonFont.pixelSize === Qt.application.font.pointSize * 96 / 72,
+                    "fallback rounds the Qt application point font");
+                Style.applyTheme(buttonPalette());
+                check(Qt.colorEqual(buttonProbe.background.color,"#ff203040"),"button ignores native normal style");
+                check(buttonProbe.implicitHeight===32,"button theme metrics not logical");
+                const fractional=buttonPalette();fractional.buttons.font.pixelSize=15.5;Style.applyTheme(fractional);
+                check(buttonProbe.font.pointSize===11.625,"fractional native font size rounded to integer pixels");
+                buttonProbe.down=true;
+                check(Qt.colorEqual(buttonProbe.background.color,"#ff607080"),"button ignores native pressed style");
+                buttonProbe.enabled=false;
+                check(Qt.colorEqual(buttonProbe.background.color,"#ff102030") && Qt.colorEqual(buttonProbe.contentItem.color,"#80f0f1f2"),"disabled alpha or precedence lost");
+                buttonProbe.enabled=true;buttonProbe.down=false;buttonProbe.checkable=true;buttonProbe.checked=true;
+                check(Qt.colorEqual(buttonProbe.background.color,"#ff8090a0"),"button ignores native checked style");
+                buttonProbe.destroy();buttonProbe=null;
                 check(typeof Style.applyTheme === "function", "native theme application missing");
                 Style.applyTheme({background: "#80203040", foreground: "#fff0f1f2"});
                 check(Qt.colorEqual(backgroundOf(large), "#80203040"), "popup uses native background including alpha");
@@ -99,10 +151,18 @@ ShellRoot {
                 check(panels.state.widgets.small.requestId === requestId, "theme change restarts widget lifecycle");
                 check(panels.state.widgets.small.phase === "open", "animation completed: " + JSON.stringify(panels.state) + " progress=" + small.progress);
                 check(large.loaded && small.loaded, "components load on first open and persist");
+                Style.applyTheme(buttonPalette());
+                const close=findClose(small), largeClose=findClose(large);
+                check(close && largeClose,"both demo close buttons must use shared component");
+                check(Qt.colorEqual(close.background.color,"#ff203040") && Qt.colorEqual(largeClose.background.color,"#ff203040"),"demo buttons do not update with native theme");
+                close.forceActiveFocus(Qt.TabFocusReason);
+                check(close.visualFocus && close.appearance.focusWidth===2,"keyboard focus ring missing");
+                Style.applyTheme({background:"#ffeeeeee",foreground:"#ff222222"});
+                check(!Style.theme.buttons && close.appearance.foreground!==undefined && close.implicitHeight>0,"legacy palette has no portable button fallback");
                 check(!panels.state.widgets.broken.available, "broken isolated on first open");
                 check(small.surface.width === 184 && small.surface.height === 144, "clamped fixed surface");
                 check(small.scrollRequired, "clamped content remains scrollable");
-                small.widgetContext.requestClose();
+                close.click();
                 check(small.surface.visible && panels.state.widgets.small.phase === "closing", "closing remains mapped");
             } else if (stage === 2) {
                 check(!small.surface.visible && panels.state.widgets.small.phase === "closed", "closed unmapped");
@@ -118,7 +178,7 @@ ShellRoot {
                 stage = 3; return;
             } else if (stage === 3) {
                 check(panels.state.widgets.large.phase === "open" && large.progress === 1, "animations disabled opens");
-                large.widgetContext.requestClose();
+                findClose(large).click();
             } else {
                 check(!large.surface.visible && panels.state.widgets.large.phase === "closed", "animations disabled closes");
                 console.log("QML components, failure isolation, context and animation passed");

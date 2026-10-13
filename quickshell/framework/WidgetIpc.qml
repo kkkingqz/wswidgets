@@ -17,7 +17,7 @@ Scope {
         case "placed": return controller.dispatch({type: "PLACED", id: args.id, requestId: args.requestId});
         case "placementFailed": return controller.dispatch({type: "FAILED", id: args.id, requestId: args.requestId, reason: args.reason});
         case "setGeometry": return controller.dispatch({type: "GEOMETRY", id: args.id, requestId: args.requestId, width: args.width, height: args.height});
-        case "setAnimations": controller.animationsEnabled = args.enabled; return true;
+        case "setAnimations": controller.animationsEnabled = args.enabled; Style.animationsEnabled = args.enabled; return true;
         case "setTheme": Style.applyTheme(args); return true;
         }
     }
