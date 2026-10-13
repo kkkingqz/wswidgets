@@ -72,6 +72,8 @@ in
     };
 
     xdg.dataFile."workstation/widgets/manifest.json".source = manifestFile;
+    # Every widget of the installed version (shell completion, listings).
+    xdg.dataFile."workstation/widgets/catalog.json".text = builtins.toJSON (import ../catalog.nix);
     xdg.dataFile."workstation/widgets/runtime.json".text = builtins.toJSON {
       schemaVersion = 2;
       qsPath = "${runtime}/bin/qs-widgets";

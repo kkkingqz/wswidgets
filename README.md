@@ -22,6 +22,13 @@ programs.wswidgets = { enable = true; widgets = [ "example" "compact" ]; };
 Enable the extension `config.programs.wswidgets.extensionUuid` in
 `org.gnome.shell enabled-extensions`, then log out and in once.
 
+`lib.catalog` lists every widget of a version (`nix eval --json …#lib.catalog`).
+
 `nix flake check` runs every test. Full documentation (Russian):
 [docs/ws-widgets.md](docs/ws-widgets.md); design notes in `docs/specs` and
 `docs/plans`.
+
+## License
+
+Licensed under either of [Apache License 2.0](LICENSE-APACHE) or
+[MIT license](LICENSE-MIT) at your option.

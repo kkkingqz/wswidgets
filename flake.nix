@@ -1,5 +1,5 @@
 {
-  description = "wswidgets: Quickshell widget runtime with a GNOME panel adapter";
+  description = "wswidgets: Quickshell widget runtime with a GNOME panel adapter (MIT OR Apache-2.0)";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
 
@@ -24,6 +24,9 @@
       '';
     in {
       homeManagerModules.default = import ./nix/module.nix;
+      # Every widget of this version (ID, label, icon, size, component), for
+      # tools that choose the enabled ones: nix eval --json …#lib.catalog.
+      lib.catalog = catalog;
 
       packages.${system} = {
         default = packages.cli;
