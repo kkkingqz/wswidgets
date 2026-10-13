@@ -7,7 +7,7 @@ export function validateCommand(frame, role) {
     if (!frame || frame.protocolVersion !== 2 || frame.type !== 'command'
         || !Number.isSafeInteger(frame.seq) || frame.seq <= 0
         || !frame.args || typeof frame.args !== 'object' || Array.isArray(frame.args)) return false;
-    const allowed = role === 'adapter' ? ['toggle', 'hideAll', 'placed', 'placementFailed', 'setGeometry', 'setAnimations', 'setTheme']
+    const allowed = role === 'adapter' ? ['toggle', 'hideAll', 'hidePopups', 'placed', 'placementFailed', 'setGeometry', 'setAnimations', 'setTheme']
         : role === 'cli' ? ['status', 'show', 'hide', 'toggle', 'hideAll'] : [];
     if (!allowed.includes(frame.method)) return false;
     const a = frame.args;

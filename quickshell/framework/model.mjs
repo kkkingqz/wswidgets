@@ -2,6 +2,8 @@ export function createState(entries, instanceId, pid) {
     const widgets = {};
     for (const entry of entries.filter(e => e.enabled)) {
         widgets[entry.id] = {phase: 'closed', desiredOpen: false, requestId: 0,
+            presentation: entry.presentation || 'popup',
+            minimumWidth: entry.minimumWidth ?? Math.min(160,entry.width), minimumHeight: entry.minimumHeight ?? Math.min(120,entry.height),
             available: true, width: entry.width, height: entry.height,
             panelWidth: entry.width, panelHeight: entry.height, deadline: 0};
     }
@@ -16,8 +18,7 @@ export function reduce(previous, event, nowMs) {
     const widget = Object.prototype.hasOwnProperty.call(state.widgets, event.id) ? state.widgets[event.id] : null;
     function begin(id) {
         const w = state.widgets[id];
-        state.selectedId = id;
-        state.pendingId = null;
+        if (w.presentation==='popup') { state.selectedId = id; state.pendingId = null; }
         w.requestId++;
         w.desiredOpen = true;
         w.phase = 'preparing';
@@ -36,11 +37,11 @@ export function reduce(previous, event, nowMs) {
         if (w.phase === 'closed') return;
         if (w.phase === 'closing' && !force) return;
         w.requestId++;
-        if (force || w.phase === 'preparing') {
+        if (force || w.phase === 'preparing' || w.presentation==='window') {
             w.phase = 'closed';
             if (state.selectedId === id) state.selectedId = null;
             effects.push({type: 'hide', id});
-            next();
+            if (w.presentation==='popup') next();
         } else {
             w.phase = 'closing';
             effects.push({type: 'animate', id, requestId: w.requestId, phase: 'closing'});
@@ -49,6 +50,7 @@ export function reduce(previous, event, nowMs) {
     function open(id) {
         const w = state.widgets[id];
         w.desiredOpen = true;
+        if (w.presentation==='window') { if (w.phase==='closed') begin(id); return; }
         if (state.selectedId && state.selectedId !== id) {
             if (state.pendingId && state.pendingId !== id) state.widgets[state.pendingId].desiredOpen = false;
             state.pendingId = id;
@@ -64,9 +66,9 @@ export function reduce(previous, event, nowMs) {
     }
     switch (event.type) {
     case 'COMMAND':
-        if (event.action === 'hideAll') {
+        if (['hideAll','hidePopups'].includes(event.action)) {
             state.pendingId = null;
-            for (const id of Object.keys(state.widgets)) shut(id);
+            for (const [id,w] of Object.entries(state.widgets)) if (event.action==='hideAll' || w.presentation==='popup') shut(id);
         } else if (!widget || !['show', 'hide', 'toggle'].includes(event.action)) accepted = false;
         else {
             const wants = event.action === 'show' || (event.action === 'toggle' && !widget.desiredOpen);
@@ -81,12 +83,12 @@ export function reduce(previous, event, nowMs) {
     case 'PLACED':
         if (!widget || widget.phase !== 'preparing' || widget.requestId !== event.requestId) accepted = false;
         else {
-            widget.phase = 'opening';
-            effects.push({type: 'animate', id: event.id, requestId: widget.requestId, phase: 'opening'});
+            widget.phase = widget.presentation==='window' ? 'open' : 'opening';
+            if (widget.presentation==='popup') effects.push({type: 'animate', id: event.id, requestId: widget.requestId, phase: 'opening'});
         }
         break;
     case 'FINISHED':
-        if (!widget || widget.phase !== event.phase || widget.requestId !== event.requestId
+        if (!widget || widget.presentation!=='popup' || widget.phase !== event.phase || widget.requestId !== event.requestId
             || !['opening', 'closing'].includes(event.phase)) accepted = false;
         else if (event.phase === 'opening') widget.phase = 'open';
         else { widget.phase = 'closed'; state.selectedId = null; next(); }
@@ -100,9 +102,15 @@ export function reduce(previous, event, nowMs) {
         else { widget.available = event.value; if (!event.value) { if (state.pendingId === event.id) state.pendingId = null; shut(event.id, true); state.lastError = {id: event.id, reason: event.reason || 'component unavailable'}; } }
         break;
     case 'GEOMETRY':
-        if (!widget || widget.requestId !== event.requestId || ![event.width, event.height].every(x => Number.isInteger(x) && x > 0)
+        if (!widget || widget.presentation!=='popup' || widget.requestId !== event.requestId || ![event.width, event.height].every(x => Number.isInteger(x) && x > 0)
             || event.width > widget.width || event.height > widget.height) accepted = false;
         else { widget.panelWidth = event.width; widget.panelHeight = event.height; }
+        break;
+    case 'RESIZED':
+        if (!widget || widget.presentation!=='window' || widget.requestId!==event.requestId
+            || !['preparing','open'].includes(widget.phase) || ![event.width,event.height].every(x=>Number.isSafeInteger(x) && x>0)
+            || event.width<widget.minimumWidth || event.height<widget.minimumHeight) accepted=false;
+        else { widget.panelWidth=event.width; widget.panelHeight=event.height; }
         break;
     case 'ADAPTER_CONNECTED':
         state.adapter.connected = true;

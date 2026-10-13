@@ -6,6 +6,40 @@ function event(s, type, args = {}, time = 0) { return reduce(s, {type, ...args},
 function show(s, id = 'example') { return event(s, 'COMMAND', {action: 'show', id}).state; }
 function placed(s) { return event(s, 'PLACED', {id: 'example', requestId: s.widgets.example.requestId}).state; }
 export const tests = {
+    windowsCoexistAndDoNotOwnPopupSelection: () => {
+        let s=windowInitial();s=show(s,'window-one');s=show(s,'window-two');s=show(s);
+        assert(s.widgets['window-one'].phase==='preparing' && s.widgets['window-two'].phase==='preparing','windows are mutually exclusive');
+        assert(s.selectedId==='example' && s.pendingId===null,'window owns popup selection');
+        s=event(s,'PLACED',{id:'window-one',requestId:s.widgets['window-one'].requestId}).state;
+        assert(s.widgets['window-one'].phase==='open','normal window waits for popup animation');
+        const r=event(s,'COMMAND',{action:'hide',id:'window-one'});
+        assert(r.state.widgets['window-one'].phase==='closed' && r.state.selectedId==='example','closing window clears popup');
+        assert(r.state.widgets['window-two'].phase==='preparing','closing window affects other window');
+    },
+    popupDismissalAndSwitchKeepIndependentWindows: () => {
+        let s=show(windowInitial(),'window-one');s=show(s);s=placed(s);s=show(s,'compact');
+        const request=s.widgets['window-one'].requestId;
+        s=event(s,'FAILED',{id:'window-one',requestId:request,reason:'test'}).state;
+        assert(s.pendingId==='compact' && s.selectedId==='example','window failure consumes popup queue');
+        s=event(s,'FINISHED',{id:'example',phase:'closing',requestId:s.widgets.example.requestId}).state;
+        assert(s.selectedId==='compact' && s.widgets.compact.phase==='preparing');
+        s=show(s,'window-two');s=event(s,'COMMAND',{action:'hidePopups'}).state;
+        assert(s.selectedId===null && s.pendingId===null && s.widgets['window-two'].desiredOpen,'popup dismissal hides window');
+        s=event(s,'ADAPTER_DISCONNECTED').state;
+        assert(Object.values(s.widgets).every(w=>w.phase==='closed' && !w.desiredOpen),'EOF leaves window mapped');
+    },
+    nativeResizePersistsAndRejectsStaleEvents: () => {
+        let s=show(windowInitial(),'window-one'), requestId=s.widgets['window-one'].requestId;
+        s=event(s,'PLACED',{id:'window-one',requestId}).state;
+        s=event(s,'RESIZED',{id:'window-one',requestId,width:800,height:600}).state;
+        assert(s.widgets['window-one'].panelWidth===800 && s.widgets['window-one'].panelHeight===600,'native resize rejected or clamped to initial');
+        assert(!event(s,'RESIZED',{id:'window-one',requestId:requestId-1,width:700,height:500}).accepted,'stale resize accepted');
+        assert(!event(s,'RESIZED',{id:'window-one',requestId,width:10,height:10}).accepted,'minimum bounds ignored');
+        s=event(s,'COMMAND',{action:'hide',id:'window-one'}).state;
+        assert(!event(s,'RESIZED',{id:'window-one',requestId:s.widgets['window-one'].requestId,width:900,height:700}).accepted,'closed window resize accepted');
+        s=show(s,'window-one');assert(s.widgets['window-one'].panelWidth===800,'reopen resets user size');
+        assert(!event(s,'GEOMETRY',{id:'window-one',requestId:s.widgets['window-one'].requestId,width:200,height:200}).accepted,'adapter overwrites normal geometry');
+    },
     inheritedIdsRejected: () => {
         const targets = [Object.prototype, Object, Object.prototype.toString];
         const keys = ['phase', 'requestId', 'desiredOpen', 'available'];
@@ -67,3 +101,6 @@ export const tests = {
     },
     hideAllCancelsPending: () => { let s = show(placed(show(initial())), 'compact'); s = event(s, 'COMMAND', {action: 'hideAll'}).state; assert(s.pendingId === null && !s.widgets.compact.desiredOpen); },
 };
+function windowInitial() {
+    return event(createState(entries.concat(['window-one','window-two'].map(id=>({id,enabled:true,presentation:'window',width:400,height:300,minimumWidth:160,minimumHeight:120}))), 'one',42),'ADAPTER_CONNECTED').state;
+}

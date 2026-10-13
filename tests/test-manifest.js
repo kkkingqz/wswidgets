@@ -6,6 +6,14 @@ const entry = {id: 'example', enabled: true, label: 'Example', iconName: 'view-g
     component: 'widgets/example/Widget.qml', width: 420, height: 580, panelPosition: 'right', panelOrder: 0};
 function manifest(changes = {}) { return {schemaVersion: 1, widgets: [{...entry, ...changes}]}; }
 export const tests = {
+    presentationAndMinimumSizes: () => {
+        assert(validateManifest(manifest())[0].presentation==='popup');
+        const e=validateManifest(manifest({presentation:'window',minimumWidth:240,minimumHeight:160}))[0];
+        assert(e.presentation==='window' && e.minimumWidth===240 && e.minimumHeight===160);
+        assert(validateManifest(manifest({presentation:'window',width:100,height:80}))[0].minimumWidth===100);
+        for(const changes of [{presentation:'panel'},{presentation:null},{minimumWidth:null},{minimumWidth:0},{minimumHeight:581},{minimumWidth:'100'},{minimumHeight:1.5}])
+            rejects(()=>validateManifest(manifest(changes)));
+    },
     unloadPolicy: () => {
         assert(validateManifest(manifest())[0].unloadOnClose === false);
         assert(validateManifest(manifest({unloadOnClose:true}))[0].unloadOnClose === true);

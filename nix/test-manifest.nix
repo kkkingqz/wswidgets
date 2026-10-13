@@ -8,6 +8,11 @@ let
   orders = map (e: e.panelOrder) (make [ entry other ] [ "other" "example" ]).widgets;
 in
 assert accepts [ entry ] [ "example" ];
+assert (builtins.head (make [ entry ] [ "example" ]).widgets).presentation == "popup";
+assert accepts [ (entry // { presentation = "window"; minimumWidth = 240; minimumHeight = 160; }) ] [ "example" ];
+assert !(accepts [ (entry // { presentation = "panel"; }) ] [ "example" ]);
+assert !(accepts [ (entry // { minimumWidth = 0; }) ] [ "example" ]);
+assert !(accepts [ (entry // { minimumHeight = 581; }) ] [ "example" ]);
 assert accepts [ entry ] [ ];
 assert orders == [ 0 1 ];
 assert (builtins.head (make [ entry other ] [ "other" "example" ]).widgets).id == "other";

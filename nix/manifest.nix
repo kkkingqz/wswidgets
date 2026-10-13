@@ -6,7 +6,9 @@ let
   catalogIds = map (e: e.id) catalog;
   unknown = lib.filter (id: !(byId ? ${id})) widgets;
   entries = lib.imap0 (i: id:
-    { enabled = true; unloadOnClose = false; panelPosition = "right"; panelOrder = i; } // byId.${id}) widgets;
+    let e = byId.${id}; in
+    { enabled = true; unloadOnClose = false; panelPosition = "right"; panelOrder = i;
+      presentation = "popup"; minimumWidth = lib.min 160 e.width; minimumHeight = lib.min 120 e.height; } // e) widgets;
   safeFile = value:
     let
       parts = lib.splitString "/" value;
@@ -21,6 +23,9 @@ let
     builtins.isString e.id && builtins.match "[a-z][a-z0-9-]*" e.id != null
     && builtins.isBool e.enabled && builtins.isBool e.unloadOnClose
     && lib.all (x: builtins.isInt x && x > 0) [ e.width e.height ]
+    && lib.elem e.presentation [ "popup" "window" ]
+    && lib.all (x: builtins.isInt x && x > 0) [ e.minimumWidth e.minimumHeight ]
+    && e.minimumWidth <= e.width && e.minimumHeight <= e.height
     && lib.elem e.panelPosition [ "left" "center" "right" ] && builtins.isInt e.panelOrder
     && lib.all (x: builtins.isString x && x != "") [ e.label e.iconName ]
     && safeFile e.component;

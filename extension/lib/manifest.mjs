@@ -4,6 +4,9 @@ export function validateManifest(value) {
     const ids = new Set();
     return value.widgets.map(raw => {
         const entry = Object.assign({enabled: true, unloadOnClose: false, panelPosition: 'right', panelOrder: 0}, raw);
+        if (entry.presentation===undefined) entry.presentation='popup';
+        if (entry.minimumWidth===undefined) entry.minimumWidth=Math.min(160,entry.width);
+        if (entry.minimumHeight===undefined) entry.minimumHeight=Math.min(120,entry.height);
         if (typeof entry.id !== 'string' || !/^[a-z][a-z0-9-]*$/.test(entry.id) || ids.has(entry.id))
             throw new Error('invalid or duplicate widget ID');
         ids.add(entry.id);
@@ -11,6 +14,10 @@ export function validateManifest(value) {
             || typeof entry.enabled !== 'boolean' || typeof entry.unloadOnClose !== 'boolean' || !Number.isInteger(entry.panelOrder)
             || !['left', 'center', 'right'].includes(entry.panelPosition))
             throw new Error(`invalid widget dimensions/placement: ${entry.id}`);
+        if (!['popup','window'].includes(entry.presentation)
+            || ![entry.minimumWidth,entry.minimumHeight].every(x=>Number.isInteger(x) && x>0)
+            || entry.minimumWidth>entry.width || entry.minimumHeight>entry.height)
+            throw new Error(`invalid widget presentation/minimum size: ${entry.id}`);
         if (![entry.label, entry.iconName].every(x => typeof x === 'string' && x.length > 0))
             throw new Error(`missing label/icon: ${entry.id}`);
         if (typeof entry.component !== 'string' || !/^[a-zA-Z0-9_./-]+\.qml$/.test(entry.component)

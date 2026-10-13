@@ -7,8 +7,13 @@ export function acceptSnapshot(previous, value) {
         if (!/^[a-z][a-z0-9-]*$/.test(id) || !w || !['closed', 'preparing', 'opening', 'open', 'closing'].includes(w.phase)
             || !Number.isInteger(w.requestId) || w.requestId < 0 || typeof w.desiredOpen !== 'boolean'
             || typeof w.available !== 'boolean' || ![w.width, w.height, w.panelWidth, w.panelHeight].every(n => Number.isInteger(n) && n > 0)) return null;
+        if (w.presentation!==undefined && !['popup','window'].includes(w.presentation)) return null;
+        if (w.presentation==='window' && (![w.minimumWidth,w.minimumHeight].every(n=>Number.isInteger(n) && n>0)
+            || w.minimumWidth>w.width || w.minimumHeight>w.height)) return null;
     }
     if (value.selectedId !== null && !Object.hasOwn(value.widgets, value.selectedId)) return null;
+    for (const id of [value.selectedId,value.pendingId]) if (id!=null
+        && (!Object.hasOwn(value.widgets,id) || value.widgets[id].presentation==='window')) return null;
     if (previous?.instanceId === value.instanceId && previous.revision >= value.revision) return null;
     return value;
 }

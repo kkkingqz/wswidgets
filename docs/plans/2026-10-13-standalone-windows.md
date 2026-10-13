@@ -1,0 +1,44 @@
+# Standalone Windows Implementation Plan
+
+> **For agentic workers:** Use superpowers:executing-plans inline; fresh branch review before delivery.
+
+**Goal:** Add independently movable/resizable widget windows without changing default popups.
+**Architecture:** presentation selects a host; shared content/context; model separates independent windows from the exclusive popup; GNOME activates ordinary windows without popup mutations.
+**Tech Stack:** QML/Quickshell0.3, GJS/St/Meta, Unix JSON socket, Nix.
+**Spec:** docs/specs/2026-10-13-standalone-windows.md
+
+## Global Constraints
+- ProtocolVersion2 and legacy manifests/snapshots remain accepted.
+- Default presentation popup; one popup, any independent windows.
+- Logical client sizes; no extra scale, process or periodic idle timers.
+- All surfaces close on adapter EOF; explicit hideAll includes windows.
+- No production standalone widget enabled; current two demos remain popups.
+
+## Review Focus
+- Closing/failing/resizing a normal window must preserve popup selection/pending intent.
+- Focus/outside/overview/workspace handlers must never dismiss standalone windows.
+- Native resizing and reopen must not impose initial/fixed geometry again.
+- Adapter must retain normal window type/switcher/native effects and verify PID/title.
+- Deferred lazy load, minimum bounds, stale resize/placement events and EOF must be isolated.
+
+### Task 1: Manifest and lifecycle
+Files: nix/manifest.nix, nix/test-manifest.nix, both manifest.mjs copies,
+model.mjs, wire.mjs, WidgetIpc.qml, extension/protocol.mjs, model/manifest/protocol tests.
+Interfaces: presentation popup|window; minimumWidth/minimumHeight; COMMAND hidePopups;
+internal RESIZED{id,requestId,width,height}; selectedId/pendingId refer only to popup.
+- [x] Write failing manifest normalization/invalid bounds and lifecycle tests for two windows+popup, popup-only dismissal, targeted close/failure, resize/reopen, adapter EOF.
+- [x] Run GJS relevant suites; confirm RED, implement normal-window branch and validation; run all GJS and Nix manifest checks GREEN.
+
+### Task 2: Host and GNOME policies
+Files: WidgetHost.qml, new PopupWidgetHost.qml, WindowWidgetHost.qml, WidgetContent.qml;
+extension/windowPlacement.js, windowEffects.mjs, extension.js; QML/placement/effects/socket tests; docs/ws-widgets.md/live-checklist.md.
+Interfaces: WidgetHost retains surface/widgetContext/loaded/progress/scrollRequired;
+WidgetContent supplies context and lazy Loader; normal host actual width/height dispatch RESIZED.
+- [ ] Write actual QML failing checks for independent visible surfaces, native size limits, context/resize/reopen/unload, Escape/close, coexistence and EOF.
+- [ ] Write native-boundary adapter tests forbidding normal-window popup mutations and effect suppression.
+- [ ] Implement host selection/shared content and normal native window; isolate adapter popup dismissal and activation branches.
+- [ ] Run full flake checks, isolated native GNOME move/resize/focus/activation probes and consumer build; fix any failure.
+- [ ] Update authoring docs/live checklist; obtain whole-branch review and fix findings.
+- [ ] Commit/local integrate and install local input without publishing or changing consumer pin; verify ws check widgets.
+
+Execution evidence: ~/.cache/wswidgets-execution/2026-10-13/windows/.

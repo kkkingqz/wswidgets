@@ -13,7 +13,7 @@ Scope {
     function execute(method, args) {
         switch (method) {
         case "status": return controller.state;
-        case "show": case "hide": case "toggle": case "hideAll": return controller.command(method, args.id || "");
+        case "show": case "hide": case "toggle": case "hideAll": case "hidePopups": return controller.command(method, args.id || "");
         case "placed": return controller.dispatch({type: "PLACED", id: args.id, requestId: args.requestId});
         case "placementFailed": return controller.dispatch({type: "FAILED", id: args.id, requestId: args.requestId, reason: args.reason});
         case "setGeometry": return controller.dispatch({type: "GEOMETRY", id: args.id, requestId: args.requestId, width: args.width, height: args.height});
