@@ -1,5 +1,5 @@
 // The external boundary is Shell's animation predicate; the wrapper itself is real.
-const policy = await import('../../gnome/extensions/workstation-widgets@local/lib/windowEffects.mjs').catch(() => ({}));
+const policy = await import('../extension/lib/windowEffects.mjs').catch(() => ({}));
 function assert(value, message = 'window effects policy') { if (!value) throw new Error(message); }
 function actor(pid, title) { return {meta_window: {get_pid: () => pid, get_title: () => title}}; }
 function wrapper(original, getSnapshot) {

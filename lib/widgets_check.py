@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Read-only widget owner diagnostics, consumed by check.bash."""
+"""Read-only widget diagnostics: ws-widgets check (text or --json), --tsv
+for an outer check runner (LEVEL<TAB>TEXT per line)."""
 import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 from widgets_cli import load_config, ipc, in_session, UNIT
 
-def report(level, text): print(f'{level}\t{text}')
+messages = []
+def report(level, text): messages.append((level, text))
 def run(args): return subprocess.run(args, capture_output=True, text=True, timeout=3)
 def check():
     try:
@@ -25,14 +28,14 @@ def check():
             assert (qml / path).is_file(), f'missing component: {entry["id"]}'
         report('pass', 'runtime, manifest and QML components are delivered')
     except Exception as error:
-        report('fail', f'widget files: {error} (ws switch)'); return
+        report('fail', f'widget files: {error} (home-manager switch)'); return
     if not in_session():
         report('warn', 'GNOME Wayland session unavailable; window/adapter checks were not performed'); return
     service = run(['systemctl', '--user', 'is-active', UNIT])
     report('pass' if service.returncode == 0 else 'fail', f'service: {service.stdout.strip()}')
     extension = run(['gnome-extensions', 'info', 'workstation-widgets@local'])
     active = extension.returncode == 0 and any(line.strip().split(':', 1)[-1].strip() == 'ACTIVE' for line in extension.stdout.splitlines())
-    report('pass' if active else 'warn', 'GNOME adapter ACTIVE' if active else 'GNOME adapter unavailable; ws apply extensions and log out/in')
+    report('pass' if active else 'warn', 'GNOME adapter ACTIVE' if active else 'GNOME adapter unavailable; home-manager switch, enable it, log out and in')
     result = ipc(config, 'status')
     try:
         assert result.returncode == 0, result.stderr.strip() or 'no IPC response'
@@ -49,5 +52,26 @@ def check():
         if state.get('lastError'): report('warn', f'last runtime error: {state["lastError"]}')
     except Exception as error: report('fail', f'IPC: {error}')
 
-try: check()
-except Exception as error: report('fail', f'widget check: {error}')
+def diagnostics():
+    messages.clear()
+    try: check()
+    except Exception as error: report('fail', f'widget check: {error}')
+    return list(messages)
+
+def main(args):
+    if args not in ([], ['--json'], ['--tsv']):
+        print('Usage: ws-widgets check [--json|--tsv]', file=sys.stderr); return 64
+    result = diagnostics()
+    count = {level: sum(1 for l, _ in result if l == level) for level in ('pass', 'warn', 'fail')}
+    if args == ['--tsv']:
+        for level, text in result: print(f'{level}\t{text}')
+    elif args == ['--json']:
+        status = 'fail' if count['fail'] else 'warn' if count['warn'] else 'pass'
+        print(json.dumps({'status': status, 'passes': count['pass'], 'warnings': count['warn'], 'failures': count['fail'],
+                          'messages': [{'level': l, 'text': t} for l, t in result]}))
+    else:
+        for level, text in result: print(f'  {level.upper():<5} {text}')
+        print(f"\n  PASS={count['pass']} WARN={count['warn']} FAIL={count['fail']}")
+    return 1 if count['fail'] else 0
+
+if __name__ == '__main__': sys.exit(main(sys.argv[1:]))

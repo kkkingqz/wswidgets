@@ -10,7 +10,7 @@ import tempfile
 import time
 from socket_client import Peer
 
-root = Path(__file__).resolve().parents[2]
+root = Path(__file__).resolve().parents[1]
 parser = argparse.ArgumentParser()
 parser.add_argument('--runtime', required=True)
 parser.add_argument('--manifest', required=True)
@@ -27,12 +27,12 @@ def counters(pid):
 with tempfile.TemporaryDirectory(prefix='widgets-runtime-') as tmp:
     directory = Path(tmp)
     qml = directory/'config'
-    shutil.copytree(root/'widgets/quickshell', qml); qml.chmod(0o755)
+    shutil.copytree(root/'quickshell', qml); qml.chmod(0o755)
     entrypoint = qml/'shell.qml'; entrypoint.chmod(0o644)
     if not args.idle_seconds:
         content = entrypoint.read_text().replace('Variants {', 'Variants {\n        id: inspectedHosts')
         entrypoint.write_text(content.rsplit('}', 1)[0]+'RuntimeInspector { hosts: inspectedHosts }\n}\n')
-        shutil.copy(root/'tests/widgets/RuntimeInspector.qml', qml/'RuntimeInspector.qml')
+        shutil.copy(root/'tests/RuntimeInspector.qml', qml/'RuntimeInspector.qml')
     manifest = directory/'manifest.json'; shutil.copy(args.manifest, manifest)
     endpoint = directory/'control.sock'
     config = dict(schemaVersion=2, socketPath=str(endpoint), qsPath=runtime, manifestPath=str(manifest), adapter='gnome')
@@ -53,7 +53,7 @@ with tempfile.TemporaryDirectory(prefix='widgets-runtime-') as tmp:
         assert not peer.call('show', id='example')['result']; peer.close()
         env['WIDGETS_TEST_PID'] = str(process.pid)
         with driver_log.open('w') as log:
-            driver = subprocess.Popen(['gjs', '-m', str(root/'tests/widgets/runtime-client.js')], env=env, stdout=log, stderr=log)
+            driver = subprocess.Popen(['gjs', '-m', str(root/'tests/runtime-client.js')], env=env, stdout=log, stderr=log)
         deadline = time.monotonic()+args.idle_seconds+15
         restarted = False; baseline = None
         while driver.poll() is None:

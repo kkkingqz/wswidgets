@@ -1,6 +1,6 @@
 import GLib from 'gi://GLib';
 import System from 'system';
-import {IpcClient} from '../../gnome/extensions/workstation-widgets@local/lib/ipcClient.js';
+import {IpcClient} from '../extension/lib/ipcClient.js';
 const config = JSON.parse(GLib.getenv('WIDGETS_TEST_CONFIG'));
 const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
 function assert(v, message) { if (!v) throw new Error(message); }

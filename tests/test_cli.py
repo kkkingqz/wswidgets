@@ -36,7 +36,7 @@ else: sys.exit(99) # invoking Quickshell from CLI is always a failure
         qml = self.root / '.config/quickshell/workstation-widgets'; qml.mkdir(parents=True)
         (qml / 'shell.qml').write_text('fixture')
         self.env = dict(os.environ, PATH=str(self.bin)+':'+os.environ['PATH'], HOME=str(self.root),
-                        XDG_CONFIG_HOME=str(self.root / '.config'), WSCONFIG=str(REPO),
+                        XDG_CONFIG_HOME=str(self.root / '.config'),
                         WS_WIDGETS_RUNTIME=str(self.config), WS_TEST_LOG=str(self.log), WS_TEST_PID=str(os.getpid()),
                         XDG_CURRENT_DESKTOP='ubuntu:GNOME', WAYLAND_DISPLAY='wayland-test')
         self.requests = []
@@ -83,6 +83,20 @@ else: sys.exit(99) # invoking Quickshell from CLI is always a failure
         result = self.run_cli('check', '--json'); data = json.loads(result.stdout)
         self.assertEqual(data['failures'], 0, result.stderr)
         self.assertFalse(any('start' in c or 'restart' in c for c in self.calls()))
+    def test_check_tsv_and_text(self):
+        tsv = self.run_cli('check', '--tsv')
+        self.assertEqual(tsv.returncode, 0, tsv.stderr)
+        levels = [line.split('\t', 1)[0] for line in tsv.stdout.splitlines()]
+        self.assertTrue(levels and set(levels) <= {'pass', 'warn', 'fail', 'info'}, tsv.stdout)
+        text = self.run_cli('check')
+        self.assertEqual(text.returncode, 0, text.stderr)
+        self.assertIn('FAIL=0', text.stdout)
+        self.assertEqual(self.run_cli('check', '--yaml').returncode, 64)
+    def test_check_fails_without_delivery(self):
+        (self.root / '.config/quickshell/workstation-widgets/shell.qml').unlink()
+        result = self.run_cli('check', '--json')
+        self.assertEqual(result.returncode, 1)
+        self.assertGreater(json.loads(result.stdout)['failures'], 0)
     def test_argument_array(self):
         result = self.run_cli('show', 'id with spaces; literal')
         self.assertEqual(result.returncode, 0, result.stderr)

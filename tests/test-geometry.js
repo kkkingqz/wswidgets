@@ -1,4 +1,4 @@
-import {placePopup} from '../../gnome/extensions/workstation-widgets@local/lib/geometry.mjs';
+import {placePopup} from '../extension/lib/geometry.mjs';
 function assert(v) { if (!v) throw new Error('geometry outside workarea'); }
 export const tests = {
     centered: () => { const r = placePopup({x: 900, y: 0, width: 30, height: 24}, {x: 0, y: 24, width: 2048, height: 1280}, {width: 444, height: 604}, 8, 12); assert(r.x === 693); },

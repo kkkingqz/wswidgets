@@ -1,4 +1,4 @@
-import {createState, reduce, nextDeadline} from '../../widgets/quickshell/framework/model.mjs';
+import {createState, reduce, nextDeadline} from '../quickshell/framework/model.mjs';
 const entries = [{id: 'example', enabled: true, width: 420, height: 580}, {id: 'compact', enabled: true, width: 320, height: 240}];
 function assert(v, m = 'assertion failed') { if (!v) throw new Error(m); }
 function initial() { return event(createState(entries, 'one', 42), 'ADAPTER_CONNECTED').state; }

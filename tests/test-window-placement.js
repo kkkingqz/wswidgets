@@ -1,12 +1,12 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {createState, reduce} from '../../widgets/quickshell/framework/model.mjs';
-import {shouldDismiss} from '../../gnome/extensions/workstation-widgets@local/lib/dismissal.mjs';
+import {createState, reduce} from '../quickshell/framework/model.mjs';
+import {shouldDismiss} from '../extension/lib/dismissal.mjs';
 
 const assert = (value, message) => { if (!value) throw Error(message); };
 // Meta, Mtk and Main require a running Shell. Substitute only these native
 // boundaries; execute the production placement class and real runtime reducer.
-const sourceFile = Gio.File.new_for_uri(import.meta.url).get_parent().resolve_relative_path('../../gnome/extensions/workstation-widgets@local/lib/windowPlacement.js');
+const sourceFile = Gio.File.new_for_uri(import.meta.url).get_parent().resolve_relative_path('../extension/lib/windowPlacement.js');
 const geometryUri = sourceFile.get_parent().get_child('geometry.mjs').get_uri();
 const source = new TextDecoder().decode(sourceFile.load_contents(null)[1])
     .replace("import Meta from 'gi://Meta';", 'const Meta = {WindowType: {DROPDOWN_MENU: 1}};')

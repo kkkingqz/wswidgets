@@ -1,7 +1,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {IpcClient} from '../../gnome/extensions/workstation-widgets@local/lib/ipcClient.js';
-import {createState} from '../../widgets/quickshell/framework/model.mjs';
+import {IpcClient} from '../extension/lib/ipcClient.js';
+import {createState} from '../quickshell/framework/model.mjs';
 const assert = (v,m='socket client assertion') => {if(!v) throw Error(m);};
 const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT,ms,()=>{resolve();return GLib.SOURCE_REMOVE;}));
 async function wait(check) {for(let n=0;n<150;n++){if(check())return;await delay(10);}throw Error('wait timed out');}

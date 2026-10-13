@@ -1,6 +1,12 @@
-{ lib, registry, qmlRoot }:
+# The manifest of the enabled widgets: catalog entries by ID, panelOrder
+# from the position in `widgets`.
+{ lib, catalog, widgets, qmlRoot }:
 let
-  entries = map (raw: { enabled = true; unloadOnClose = false; panelPosition = "right"; panelOrder = 0; } // raw) registry;
+  byId = lib.listToAttrs (map (e: lib.nameValuePair e.id e) catalog);
+  catalogIds = map (e: e.id) catalog;
+  unknown = lib.filter (id: !(byId ? ${id})) widgets;
+  entries = lib.imap0 (i: id:
+    { enabled = true; unloadOnClose = false; panelPosition = "right"; panelOrder = i; } // byId.${id}) widgets;
   safeFile = value:
     let
       parts = lib.splitString "/" value;
@@ -18,8 +24,10 @@ let
     && lib.elem e.panelPosition [ "left" "center" "right" ] && builtins.isInt e.panelOrder
     && lib.all (x: builtins.isString x && x != "") [ e.label e.iconName ]
     && safeFile e.component;
-  ids = map (e: e.id) entries;
 in
-assert lib.assertMsg (lib.all valid entries) "invalid widget registry entry or unsafe/missing QML component";
-assert lib.assertMsg (builtins.length ids == builtins.length (lib.unique ids)) "duplicate widget ID";
+assert lib.assertMsg (builtins.length catalogIds == builtins.length (lib.unique catalogIds)) "duplicate widget ID in the catalog";
+assert lib.assertMsg (unknown == [ ])
+  "unknown widget ID: ${lib.concatStringsSep ", " unknown} (catalog: ${lib.concatStringsSep ", " catalogIds})";
+assert lib.assertMsg (builtins.length widgets == builtins.length (lib.unique widgets)) "widget ID enabled twice";
+assert lib.assertMsg (lib.all valid entries) "invalid widget catalog entry or unsafe/missing QML component";
 { schemaVersion = 1; widgets = entries; }

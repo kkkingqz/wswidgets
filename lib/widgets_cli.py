@@ -87,11 +87,11 @@ def in_session():
 def main(args):
     command = args.pop(0) if args else 'status'
     if command in ('help', '--help', '-h'):
-        print('Usage: ws-widgets start|stop|restart|status|check [--json]|toggle ID|show ID|hide ID|hide-all')
+        print('Usage: ws-widgets start|stop|restart|status|check [--json|--tsv]|toggle ID|show ID|hide ID|hide-all')
         return 0
     if command == 'check':
-        repo = Path(os.environ.get('WSCONFIG', str(Path(__file__).resolve().parents[1])))
-        os.execv(str(repo / 'bin/ws-widgets-check'), ['ws-widgets-check', *args])
+        import widgets_check
+        return widgets_check.main(args)
     if command not in ('start', 'stop', 'restart', 'status', 'toggle', 'show', 'hide', 'hide-all'):
         print(f'ws-widgets: unknown command: {command}', file=sys.stderr)
         return 64

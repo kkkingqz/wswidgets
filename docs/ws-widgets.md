@@ -1,42 +1,44 @@
-title: ws-widgets
-section: 1
-date: 2026-10-09
-source: Workstation
-volume: User Commands
-
-# WORKSTATION WIDGETS
+# wswidgets
 
 Один Quickshell runtime, общий контейнер QML и один GNOME adapter.
-`widgets/registry.nix` задаёт кнопки и содержимое. GNOME extension
-`workstation-widgets@local` размещает прозрачное окно под кнопкой и только
-после этого разрешает анимацию. В каждый момент открывается один виджет.
+`catalog.nix` описывает все виджеты проекта; хост включает нужные по ID
+в порядке кнопок на панели. GNOME extension `workstation-widgets@local`
+размещает прозрачное окно под кнопкой и только после этого разрешает
+анимацию. В каждый момент открывается один виджет.
 
 ## Установка
 
-Из checkout, содержащего реализацию:
+Flake отдаёт модуль Home Manager `homeManagerModules.default`:
 
-```console
-ws switch
-ws apply extensions
-# При первой установке: выйти из GNOME и войти снова.
-ws-widgets check
+```nix
+inputs.wswidgets = {
+  url = "github:kkkingqz/wswidgets";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
+# в modules конфигурации Home Manager:
+imports = [ inputs.wswidgets.homeManagerModules.default ];
+programs.wswidgets = {
+  enable = true;
+  widgets = [ "example" "compact" ];
+  # qmlCheckout = "/home/user/Projects/wswidgets";
+};
 ```
 
-Home Manager создаёт manifest/runtime JSON в
-`~/.local/share/workstation/widgets/`, ссылку
-`~/.config/quickshell/workstation-widgets` на QML в checkout и user service
-`workstation-widgets.service`. Расширение устанавливается существующим
-владельцем extensions. При работе в отдельном worktree сначала перенести
-ветку в основной checkout: production-ссылка адресует checkout из facts.nix.
-Основной checkout может оставаться на ветке `wsconfig`; merge в `main`
-для установки не требуется.
-Не активировать generation, ссылающуюся на основной checkout без этих файлов.
+Модуль устанавливает `ws-widgets`, создаёт manifest/runtime JSON в
+`~/.local/share/workstation/widgets/`, QML в
+`~/.config/quickshell/workstation-widgets` (из store или, с `qmlCheckout`,
+ссылкой на `quickshell/` checkout), файлы extension в
+`~/.local/share/gnome-shell/extensions/workstation-widgets@local` и user service
+`workstation-widgets.service`. Включение extension (`enabled-extensions`)
+остаётся владельцу списка расширений: UUID — `programs.wswidgets.extensionUuid`.
+При первой установке и после изменения кода extension нужен новый вход в GNOME.
+Неизвестный ID в `widgets` останавливает сборку со списком доступных.
 
 Runtime запускается вместе с graphical-session.target только в GNOME Wayland
 (`ExecCondition`: `XDG_CURRENT_DESKTOP` с GNOME, `WAYLAND_DISPLAY`, нет
-`gamescope-session-plus` — Game Mode, `helpws gaming`), останавливается с
+`gamescope-session-plus` — сессии Steam Game Mode), останавливается с
 сессией и ограничивает частоту рестартов. Quickshell и Mesa
-из закреплённого nixpkgs находятся в отдельном closure; launcher задаёт EGL
+из nixpkgs потребителя (`inputs.nixpkgs.follows`) находятся в отдельном closure; launcher задаёт EGL
 vendor только для своего процесса. Qt получает scale из Wayland. Дополнительный
 `QT_SCALE_FACTOR` не нужен.
 
@@ -48,7 +50,7 @@ ws-widgets stop
 ws-widgets restart
 ws-widgets status
 ws-widgets check --json
-ws check widgets --json
+ws-widgets check --tsv
 ws-widgets toggle example
 ws-widgets show compact
 ws-widgets hide compact
@@ -58,7 +60,7 @@ journalctl --user -u workstation-widgets.service -b
 
 Обычное закрытие соединения (ответ CLI, перезагрузка расширения) не пишется в журнал:
 сервис запускается с `--log-rules quickshell.io.socket.warning=false`. Обрыв adapter
-виден в состоянии (`adapter.connected`, `lastError`) и в `ws check widgets`.
+виден в состоянии (`adapter.connected`, `lastError`) и в `ws-widgets check`.
 
 status и check читают состояние. show/toggle/hide обращаются к уже запущенному
 runtime и возвращают отказ без подключённого adapter, а также для неизвестного,
@@ -74,7 +76,7 @@ GUI-сессии или ещё не загруженный adapter отмеча�
 
 ## Добавление виджета
 
-Создать `widgets/quickshell/widgets/my-widget/Widget.qml`:
+Создать `quickshell/widgets/my-widget/Widget.qml`:
 
 ```qml
 import QtQuick
@@ -91,7 +93,7 @@ Item {
 }
 ```
 
-Добавить в `widgets/registry.nix`:
+Добавить в `catalog.nix`:
 
 ```nix
 {
@@ -103,16 +105,20 @@ Item {
   width = 360;
   height = 240;
   panelPosition = "right";
-  panelOrder = 2;
 }
 ```
 
-Применить `ws switch`: новый manifest меняет unit и перезапускает runtime,
+и включить ID в `programs.wswidgets.widgets` хоста: порядок списка задаёт
+порядок кнопок.
+
+Применить `home-manager switch`: новый manifest меняет unit и перезапускает runtime,
 а extension перечитывает кнопки после изменения runtime/manifest JSON.
 При изменениях кода самого extension нужна доставка и новый вход в GNOME.
-Runtime не следит за файлами QML (`settings.watchFiles: false`): конфигурация —
-symlink в репозиторий, и смена ветки перезагружала бы его на лету без сокета.
-После правки QML перезапустить его явно: `ws-widgets restart`.
+Runtime не следит за файлами QML (`settings.watchFiles: false`): с
+`qmlCheckout` конфигурация — symlink в checkout, и смена ветки перезагружала
+бы его на лету без сокета. После правки QML в checkout перезапустить его
+явно: `ws-widgets restart`. QML из store перезапускает runtime при switch сам
+(`X-Restart-Triggers`).
 В GNOME 50 `ReloadExtension` через D-Bus не работает, а disable/enable
 использует уже импортированный JS-модуль. Это следует из
 [реализации Shell D-Bus](https://github.com/GNOME/gnome-shell/blob/50.1/js/ui/shellDBus.js)
@@ -125,7 +131,7 @@ symlink в репозиторий, и смена ветки перезагруж
 и повторное включение других расширений. Немедленный enable в этот момент
 может оставить `Enabled: Yes`, `State: INACTIVE`. Для восстановления отключить
 расширение, дождаться `INACTIVE` и включить снова.
-Реестр проверяет уникальные ID, положительные целые размеры и безопасный
+Каталог проверяет уникальные ID, положительные целые размеры и безопасный
 относительный путь существующего компонента. `enabled = false` убирает кнопку.
 
 Widget — Item с обязательным context. Контекст содержит widgetId,
@@ -137,12 +143,12 @@ Shell theme. Adapter передаёт палитру при подключени
 Содержимое использует context.foreground для основного текста и
 context.mutedForeground для второстепенного.
 Компонент загружается при первом открытии и сохраняется после закрытия.
-`unloadOnClose = true` в registry выгружает содержимое после закрытия; следующее
+`unloadOnClose = true` в каталоге выгружает содержимое после закрытия; следующее
 открытие загрузит его заново. По умолчанию false, чтобы повторное открытие было быстрым.
 Ошибка компонента меняет значок кнопки на предупреждение и сообщает причину
 через GNOME notification; другие виджеты продолжают работать.
 Содержимое задаёт implicitHeight для прокрутки и не создаёт собственное окно.
-Размеры width/height реестра задают всю панель в логических пикселях: padding
+Размеры width/height каталога задают всю панель в логических пикселях: padding
 16 внутри, прозрачное поле 12 снаружи, radius 16. Surface = panel + 24;
 content = panel − 32. Example: panel 420×580, surface 444×604, content 388×548.
 Compact: panel 320×240, surface 344×264, content 288×208.
@@ -197,37 +203,37 @@ requestId отсекает устаревшие ответы, revision упор�
 соединение и отменяет чтение, запись, запросы и переподключение.
 
 Отключение: `ws-widgets stop` и отключить extension через GNOME Extensions.
-Постоянное удаление: убрать импорт widgets.nix и UUID из списка extensions,
-применить ws switch. Исходники и чужие файлы расширений автоматически не
-удаляются. Установщик удаляет только устаревшие файлы из своего owner manifest.
-Перед возвратом основного checkout на ветку без framework остановить runtime,
-переключить ветку и применить `ws switch`: QML-ссылка ведёт в живой checkout.
+Постоянное удаление: `programs.wswidgets.enable = false`, убрать UUID из
+`enabled-extensions` и применить `home-manager switch`: Home Manager удаляет
+свои файлы (QML, JSON, extension, service, `ws-widgets`).
+С `qmlCheckout` перед переключением checkout на ветку с другим QML
+остановить runtime или сразу выполнить `ws-widgets restart`.
 
 ## Проверки разработки
 
 ```console
-nix build .#widgets-runtime
-gjs -m tests/widgets/run-tests.js
-python3 -m unittest discover -s tests -q
-python3 tests/widgets/check-qml.py ./result/bin/qs-widgets
-nix build .#checks.x86_64-linux.widgets-manifest \
-  .#checks.x86_64-linux.widgets-qml \
-  .#checks.x86_64-linux.widgets-tests \
-  .#checks.x86_64-linux.widgets-runtime --no-link
-nix build .#checks.x86_64-linux.home-mbp16 \
-  .#checks.x86_64-linux.home-wsvm --no-link
+nix flake check --print-build-logs
+nix build .#runtime
+gjs -m tests/run-tests.js
+python3 -m unittest discover -s tests -p 'test_*.py'
+python3 tests/check-qml.py ./result/bin/qs-widgets
 ```
+
+Проверить изменения Nix-части в установленной конфигурации, не публикуя их:
+`home-manager switch --flake … --override-input wswidgets path:$HOME/Projects/wswidgets`
+(в wsconfig: `ws switch --override-input …`).
 
 Wayland smoke без GNOME-кнопок:
 
 ```console
-nix build .#checks.x86_64-linux.widgets-manifest -o /tmp/widgets-manifest
-python3 tests/widgets/check-runtime.py --runtime ./result/bin/qs-widgets \
+nix build .#checks.x86_64-linux.manifest -o /tmp/widgets-manifest
+python3 tests/check-runtime.py --runtime ./result/bin/qs-widgets \
   --manifest /tmp/widgets-manifest --wayland
 ```
 
 Тест использует временную конфигурацию, вручную подтверждает placement и
 завершает только собственные процессы. Его результат не заменяет проверку
 GNOME extension под кнопками. Фактическая матрица —
-`tests/widgets/live-checklist.md`. Поддерживаемая Shell version сейчас 50;
+`tests/live-checklist.md` (хэши коммитов в нём — из истории wsconfig, где
+проект жил до 2026-10-13). Поддерживаемая Shell version сейчас 50;
 Hyprland adapter не реализован.

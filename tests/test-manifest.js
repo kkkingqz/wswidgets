@@ -1,4 +1,4 @@
-import {validateManifest} from '../../widgets/quickshell/framework/manifest.mjs';
+import {validateManifest} from '../quickshell/framework/manifest.mjs';
 
 function assert(value) { if (!value) throw new Error('assertion failed'); }
 function rejects(fn) { let failed = false; try { fn(); } catch (_) { failed = true; } assert(failed); }

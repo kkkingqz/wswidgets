@@ -9,15 +9,15 @@ import tempfile
 import json
 import time
 
-root = Path(__file__).resolve().parents[2]
+root = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix="widgets-qml-") as temporary:
     config = Path(temporary) / "config"
-    shutil.copytree(root / "widgets/quickshell", config)
+    shutil.copytree(root / "quickshell", config)
     config.chmod(0o755)
     (config / "shell.qml").unlink(missing_ok=True)
-    shutil.copy(root / "tests/widgets/qml/shell.qml", config / "shell.qml")
-    if (root / "tests/widgets/qml/broken").exists():
-        shutil.copytree(root / "tests/widgets/qml/broken", config / "broken")
+    shutil.copy(root / "tests/qml/shell.qml", config / "shell.qml")
+    if (root / "tests/qml/broken").exists():
+        shutil.copytree(root / "tests/qml/broken", config / "broken")
     env = dict(os.environ, QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software")
     env.pop("WAYLAND_DISPLAY", None)
     env["WIDGETS_SOCKET"] = str(Path(temporary)/"control.sock")

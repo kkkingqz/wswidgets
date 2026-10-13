@@ -2,16 +2,23 @@
 let
   entry = { id = "example"; label = "Example"; iconName = "view-grid-symbolic";
     component = "shell.qml"; width = 420; height = 580; };
-  make = registry: import ./manifest.nix { inherit lib registry; qmlRoot = ../tests/widgets/probe; };
-  accepts = registry: (builtins.tryEval (builtins.deepSeq (make registry) true)).success;
+  make = catalog: widgets: import ./manifest.nix { inherit lib catalog widgets; qmlRoot = ../tests/probe; };
+  accepts = catalog: widgets: (builtins.tryEval (builtins.deepSeq (make catalog widgets) true)).success;
+  other = entry // { id = "other"; };
+  orders = map (e: e.panelOrder) (make [ entry other ] [ "other" "example" ]).widgets;
 in
-assert accepts [ entry ];
-assert accepts [ (entry // { unloadOnClose = true; }) ];
-assert !(accepts [ (entry // { unloadOnClose = "yes"; }) ]);
-assert !(accepts [ entry entry ]);
-assert !(accepts [ (entry // { width = 0; }) ]);
-assert !(accepts [ (entry // { width = 1.5; }) ]);
-assert !(accepts [ (entry // { panelPosition = "outside"; }) ]);
-assert !(accepts [ (entry // { component = "../shell.qml"; }) ]);
-assert !(accepts [ (entry // { component = "missing.qml"; }) ]);
+assert accepts [ entry ] [ "example" ];
+assert accepts [ entry ] [ ];
+assert orders == [ 0 1 ];
+assert (builtins.head (make [ entry other ] [ "other" "example" ]).widgets).id == "other";
+assert accepts [ (entry // { unloadOnClose = true; }) ] [ "example" ];
+assert !(accepts [ (entry // { unloadOnClose = "yes"; }) ] [ "example" ]);
+assert !(accepts [ entry entry ] [ "example" ]);
+assert !(accepts [ entry ] [ "example" "example" ]);
+assert !(accepts [ entry ] [ "missing" ]);
+assert !(accepts [ (entry // { width = 0; }) ] [ "example" ]);
+assert !(accepts [ (entry // { width = 1.5; }) ] [ "example" ]);
+assert !(accepts [ (entry // { panelPosition = "outside"; }) ] [ "example" ]);
+assert !(accepts [ (entry // { component = "../shell.qml"; }) ] [ "example" ]);
+assert !(accepts [ (entry // { component = "missing.qml"; }) ] [ "example" ]);
 true

@@ -1,6 +1,6 @@
-import {shouldDismiss} from '../../gnome/extensions/workstation-widgets@local/lib/dismissal.mjs';
-import * as dismissal from '../../gnome/extensions/workstation-widgets@local/lib/dismissal.mjs';
-import {createState, reduce} from '../../widgets/quickshell/framework/model.mjs';
+import {shouldDismiss} from '../extension/lib/dismissal.mjs';
+import * as dismissal from '../extension/lib/dismissal.mjs';
+import {createState, reduce} from '../quickshell/framework/model.mjs';
 function assert(v, message = 'dismissal policy') { if (!v) throw new Error(message); }
 const panelActor = {get_parent: () => null};
 const panelSurface = {get_parent: () => panelActor};

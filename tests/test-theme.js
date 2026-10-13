@@ -1,6 +1,6 @@
 import GLib from 'gi://GLib';
-import {validateCommand} from '../../widgets/quickshell/framework/wire.mjs';
-const theme = await import('../../gnome/extensions/workstation-widgets@local/lib/menuTheme.js').catch(() => ({}));
+import {validateCommand} from '../quickshell/framework/wire.mjs';
+const theme = await import('../extension/lib/menuTheme.js').catch(() => ({}));
 const assert = (value, message) => {if (!value) throw Error(message);};
 const delay = () => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {resolve();return GLib.SOURCE_REMOVE;}));
 function emitter() {
