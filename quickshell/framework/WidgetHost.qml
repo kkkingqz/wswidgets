@@ -34,6 +34,7 @@ Scope {
         readonly property color background: Style.background
         readonly property color foreground: Style.foreground
         readonly property color mutedForeground: Style.mutedForeground
+        readonly property font font: Style.font
         function requestClose() { root.controller.command("hide", widgetId); }
     }
     GnomePopupWindow {

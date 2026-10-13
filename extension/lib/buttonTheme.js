@@ -1,8 +1,17 @@
-import {buttonStateKeys, validateButtons} from './theme.mjs';
+import {buttonStateKeys, validateButtons, validateFont} from './theme.mjs';
 
 export function qtColor(color) {
     return '#' + [color.alpha, color.red, color.green, color.blue]
         .map(value => value.toString(16).padStart(2, '0')).join('');
+}
+
+export function readFont(font, scale, resolution = 96) {
+    if (!Number.isFinite(scale) || scale <= 0) throw Error('Invalid Shell theme scale');
+    const result={family:font.get_family(),
+        pixelSize:font.get_size()/1024 * (font.get_size_is_absolute() ? 1 : resolution/72) / scale,
+        weight:font.get_weight(),italic:font.get_style()!==0};
+    if (!validateFont(result)) throw Error('Unsupported native font');
+    return result;
 }
 
 // nodeFor supplies the native theme boundary; no GNOME types enter the wire data.
@@ -27,8 +36,7 @@ export function readButtonTheme(nodeFor, scale, resolution = 96) {
         minimumHeight:(Math.max(0,normal.get_min_height()) + normal.get_padding(0) + normal.get_padding(2)
             + normal.get_border_width(0) + normal.get_border_width(2))/scale,
         transitionMs:normal.get_transition_duration()},
-        font:{family:font.get_family(),pixelSize:font.get_size()/1024 * (font.get_size_is_absolute() ? 1 : resolution/72) / scale,
-            weight:font.get_weight(),italic:font.get_style()!==0}};
+        font:readFont(font,scale,resolution)};
     if (!validateButtons(result)) throw Error('Unsupported native button metrics');
     return result;
 }

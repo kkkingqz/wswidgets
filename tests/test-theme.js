@@ -22,6 +22,33 @@ async function fixture(run) {
     finally {sync.destroy();}
 }
 export const tests = {
+    menuFontRejectsMalformedData: () => {
+        const value={background:'#ff203040',foreground:'#ffffffff',font:{family:'Sans',pixelSize:14.5,weight:400,italic:false}};
+        assert(contract.validateTheme(value),'valid menu font rejected');
+        for(const font of [null,{}, {...value.font,pixelSize:NaN},{...value.font,pixelSize:0},
+            {...value.font,family:''},{...value.font,weight:2000},{...value.font,italic:'false'}])
+            assert(!contract.validateTheme({...value,font}),'invalid menu font accepted');
+    },
+    nativeMenuFontConvertsPointsAndPhysicalPixels: () => {
+        assert(typeof native.readFont==='function','shared native font extraction missing');
+        const font={get_family:()=> 'Cantarell',get_size:()=>22*1024,get_size_is_absolute:()=>true,get_weight:()=>400,get_style:()=>0};
+        assert(native.readFont(font,2).pixelSize===11,'physical font applies scale twice');
+        font.get_size_is_absolute=()=>false;
+        assert(Math.abs(native.readFont(font,2).pixelSize-22*96/72/2)<.00001,'Pango point conversion wrong');
+    },
+    menuFontChangeAndFailureKeepPaletteConnected: () => fixture(async ({sync,client,calls,actor,context}) => {
+        let size=29*1024;
+        const node=actor.get_theme_node();
+        node.get_font=()=>{if(size===null)throw Error('font unavailable');return {
+            get_family:()=> 'Sans',get_size:()=>size,get_size_is_absolute:()=>true,get_weight:()=>400,get_style:()=>0};};
+        context.scale_factor=2;
+        client.snapshot={instanceId:'one'};sync.sync();await delay();
+        assert(calls[0].args.font?.pixelSize===14.5,'popup font omitted or scaled incorrectly');
+        size=34*1024;context.emit('changed');await delay();
+        assert(calls.length===2 && calls[1].args.font.pixelSize===17,'font change not published');
+        size=null;context.emit('changed');await delay();
+        assert(calls.length===3 && calls[2].args.font===undefined && calls[2].args.background==='#80203040','font error blocks popup palette');
+    }),
     buttonStatesPreserveFocusCombinations: () => {
         assert(typeof contract.buttonStateKey === 'function', 'shared button state contract missing');
         assert(contract.buttonStateKey(true,false,false,false,false)==='normal','normal state');

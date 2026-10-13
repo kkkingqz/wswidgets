@@ -8,14 +8,17 @@ export const buttonStateKeys = Array.from({length:16}, (_, n) =>
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
 const color = v => typeof v === 'string' && /^#[0-9a-f]{8}$/i.test(v);
 const number = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
+export function validateFont(f) {
+    return object(f) && typeof f.family === 'string' && f.family.length > 0 && f.family.length <= 256
+        && number(f.pixelSize,1,256) && Number.isInteger(f.weight) && number(f.weight,1,1000)
+        && typeof f.italic === 'boolean';
+}
 export function validateButtons(v) {
     if (!object(v) || !object(v.metrics) || !object(v.font) || !object(v.states)) return false;
     const m=v.metrics, f=v.font;
     if (!['radius','paddingTop','paddingRight','paddingBottom','paddingLeft'].every(k=>number(m[k],0,128))
         || !number(m.minimumHeight,0,256) || !number(m.transitionMs,0,1000)
-        || typeof f.family !== 'string' || !f.family.length || f.family.length > 256
-        || !number(f.pixelSize,1,256) || !Number.isInteger(f.weight) || !number(f.weight,1,1000)
-        || typeof f.italic !== 'boolean') return false;
+        || !validateFont(f)) return false;
     return buttonStateKeys.every(key => {
         const s=v.states[key];
         return object(s) && ['background','foreground','borderColor','focusColor'].every(k=>color(s[k]))
@@ -24,5 +27,6 @@ export function validateButtons(v) {
 }
 export function validateTheme(v) {
     return object(v) && color(v.background) && color(v.foreground)
+        && (v.font === undefined || validateFont(v.font))
         && (v.buttons === undefined || validateButtons(v.buttons));
 }

@@ -4,9 +4,13 @@ import "framework"
 
 ShellRoot {
     property var buttonProbe: null
+    property var labelProbe: null
     function findClose(host) {
+        return findNamed(host,"closeButton");
+    }
+    function findNamed(host,name) {
         function find(item) {
-            if (item.objectName === "closeButton") return item;
+            if (item.objectName === name) return item;
             for (const child of item.children || []) { const found=find(child); if (found) return found; }
             return null;
         }
@@ -62,6 +66,15 @@ ShellRoot {
                 console.error("socket theme did not reach popup/content"); Qt.exit(1);
             }
             console.log("QML native theme applied: " + Style.background + "/" + Style.foreground);
+            if (Style.theme.font) {
+                if (!labelProbe) labelProbe=Qt.createComponent("controls/Label.qml").createObject(large.surface.contentItem,{text:"Socket font probe"});
+                const font=Style.theme.font;
+                if (!labelProbe || labelProbe.font.family!==font.family || labelProbe.font.pointSize!==font.pixelSize*72/96
+                    || labelProbe.font.weight!==font.weight || labelProbe.font.italic!==font.italic) {
+                    console.error("socket font theme did not reach label"); Qt.exit(1); return;
+                }
+                console.log("QML socket font applied: " + labelProbe.font.family + "/" + labelProbe.font.pointSize);
+            }
             if (Style.theme.buttons) {
                 if (!buttonProbe) buttonProbe=Qt.createComponent("controls/Button.qml").createObject(large.surface.contentItem,{text:"Socket probe"});
                 const state=Style.theme.buttons.states.normal;
@@ -123,6 +136,19 @@ ShellRoot {
                 buttonProbe.enabled=true;buttonProbe.down=false;buttonProbe.checkable=true;buttonProbe.checked=true;
                 check(Qt.colorEqual(buttonProbe.background.color,"#ff8090a0"),"button ignores native checked style");
                 buttonProbe.destroy();buttonProbe=null;
+                const labelComponent=Qt.createComponent("controls/Label.qml");
+                check(labelComponent.status===Component.Ready,"shared theme label missing: "+labelComponent.errorString());
+                const label=labelComponent.createObject(small.surface.contentItem,{text:"Font probe",fontScale:1.5});
+                Style.applyTheme({background:"#ff203040",foreground:"#ffffffff",
+                    font:{family:"Monospace",pixelSize:15.5,weight:400,italic:true}});
+                check(label.font.family==="Monospace" && label.font.pointSize===17.4375 && label.font.italic,"label ignores menu font/relative size");
+                check(small.widgetContext.font.family==="Monospace" && small.widgetContext.font.pointSize===11.625,"context lacks theme font");
+                Style.applyTheme({background:"#ff203040",foreground:"#ffffffff",
+                    font:{family:"Sans",pixelSize:18,weight:700,italic:false}});
+                check(label.font.pointSize===20.25 && label.font.weight===700 && !label.font.italic,"label does not follow font change");
+                Style.applyTheme({background:"#ff203040",foreground:"#ffffffff"});
+                check(label.font.family===Qt.application.font.family && label.font.pointSize===Qt.application.font.pointSize*1.5,"legacy text theme loses Qt fallback");
+                label.destroy();
                 check(typeof Style.applyTheme === "function", "native theme application missing");
                 Style.applyTheme({background: "#80203040", foreground: "#fff0f1f2"});
                 check(Qt.colorEqual(backgroundOf(large), "#80203040"), "popup uses native background including alpha");
@@ -151,10 +177,17 @@ ShellRoot {
                 check(panels.state.widgets.small.requestId === requestId, "theme change restarts widget lifecycle");
                 check(panels.state.widgets.small.phase === "open", "animation completed: " + JSON.stringify(panels.state) + " progress=" + small.progress);
                 check(large.loaded && small.loaded, "components load on first open and persist");
-                Style.applyTheme(buttonPalette());
+                const demoTheme=buttonPalette();demoTheme.font={family:"Monospace",pixelSize:18,weight:400,italic:false};
+                Style.applyTheme(demoTheme);
                 const close=findClose(small), largeClose=findClose(large);
                 check(close && largeClose,"both demo close buttons must use shared component");
                 check(Qt.colorEqual(close.background.color,"#ff203040") && Qt.colorEqual(largeClose.background.color,"#ff203040"),"demo buttons do not update with native theme");
+                for (const host of [large,small]) {
+                    const title=findNamed(host,"titleLabel"),body=findNamed(host,"bodyLabel");
+                    check(title && body && title.font.family==="Monospace" && title.font.pointSize===20.25
+                        && body.font.family==="Monospace" && body.font.pointSize===13.5,"demo labels ignore system font/relative title size");
+                }
+                check(panels.state.widgets.small.phase==="open" && panels.state.widgets.small.requestId===requestId,"font change restarts open widget");
                 close.forceActiveFocus(Qt.TabFocusReason);
                 check(close.visualFocus && close.appearance.focusWidth===2,"keyboard focus ring missing");
                 Style.applyTheme({background:"#ffeeeeee",foreground:"#ff222222"});
@@ -162,8 +195,19 @@ ShellRoot {
                 check(!panels.state.widgets.broken.available, "broken isolated on first open");
                 check(small.surface.width === 184 && small.surface.height === 144, "clamped fixed surface");
                 check(small.scrollRequired, "clamped content remains scrollable");
-                close.click();
+                Style.applyTheme({background:"#ff203040",foreground:"#ffffffff",font:{family:"Monospace",pixelSize:32,weight:400,italic:false}});
+                stage = 21; return; // Allow text and Column layout to settle.
+            } else if (stage === 21) {
+                for (const host of [large,small]) {
+                    const title=findNamed(host,"titleLabel"),button=findClose(host),widget=title.parent.parent;
+                    check(title.font.pointSize===36 && title.width<=host.widgetContext.contentWidth
+                        && title.wrapMode===Text.Wrap,"large system font title overflows content width");
+                    check(widget.implicitHeight>=button.y+button.height,"large system font clips close button without scrollable height");
+                    check(button.width<=host.widgetContext.contentWidth,"large system font button overflows available width");
+                }
+                findClose(small).click();
                 check(small.surface.visible && panels.state.widgets.small.phase === "closing", "closing remains mapped");
+                stage = 2; return;
             } else if (stage === 2) {
                 check(!small.surface.visible && panels.state.widgets.small.phase === "closed", "closed unmapped");
                 check(!small.loaded, "unloadOnClose releases content");

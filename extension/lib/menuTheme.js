@@ -1,5 +1,5 @@
 import GLib from 'gi://GLib';
-import {qtColor} from './buttonTheme.js';
+import {qtColor, readFont} from './buttonTheme.js';
 import {validateTheme} from './theme.mjs';
 export class MenuTheme {
     constructor(client, actor, context, readButtons = () => undefined) {
@@ -22,6 +22,7 @@ export class MenuTheme {
         try {
             const node = this.actor.get_theme_node();
             palette = {background: qtColor(node.get_background_color()), foreground: qtColor(node.get_foreground_color())};
+            try { palette.font=readFont(node.get_font(),this.context.scale_factor ?? 1); } catch (_) {}
             // An unsupported user button stylesheet must not break the adapter.
             try { const buttons=this.readButtons(); if (buttons) palette.buttons=buttons; } catch (_) {}
             if (!validateTheme(palette)) return;

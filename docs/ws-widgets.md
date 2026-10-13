@@ -88,7 +88,7 @@ Item {
     Column {
         width: parent.width
         spacing: 16
-        Label { text: "Мой виджет"; color: context.foreground }
+        Ui.Label { text: "Мой виджет" }
         Ui.Button { text: "Закрыть"; onClicked: context.requestClose() }
     }
 }
@@ -137,12 +137,19 @@ Runtime не следит за файлами QML (`settings.watchFiles: false`)
 
 Widget — Item с обязательным context. Контекст содержит widgetId,
 contentWidth/contentHeight, devicePixelRatio, phase, background, foreground,
-mutedForeground и requestClose(). Фон контейнера и цвета текста берутся из
+mutedForeground, font и requestClose(). Фон контейнера и цвета текста берутся из
 фактического оформления меню GNOME, включая светлую/тёмную и пользовательскую
 Shell theme. Adapter передаёт палитру при подключении и изменении стиля;
 открытые окна обновляются без повторного открытия и без периодического опроса.
 Содержимое использует context.foreground для основного текста и
 context.mutedForeground для второстепенного.
+Для надписей использовать `Ui.Label`: семейство, базовый размер, насыщенность
+и наклон приходят от DE-адаптера из шрифта меню. `fontScale` (по умолчанию 1)
+задаёт размер относительно системного, например 1.5 для заголовка. Шрифт
+следует изменениям темы и системного размера без повторного открытия окна.
+Для произвольного `Text` доступен `font: context.font`. Без данных адаптера
+используется шрифт приложения Qt. Размеры передаются в логических пикселях;
+дробная точность сохраняется, дополнительное умножение на scale не требуется.
 Для кнопок использовать общий `controls/Button.qml` (`Ui.Button`). Он сохраняет
 стандартные text/icon/Action/checkable и управление с клавиатуры. Оформление
 приходит от DE-адаптера: GNOME экспортирует вычисленные цвета состояний, фокус,

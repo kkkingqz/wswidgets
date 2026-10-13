@@ -17,11 +17,18 @@ QtObject {
         radius: 8, paddingTop: 8, paddingRight: 16, paddingBottom: 8, paddingLeft: 16,
         minimumHeight: 36, transitionMs: 120
     }
-    readonly property var buttonFont: theme?.buttons?.font || {
+    readonly property var textFont: theme?.font || {
         family: Qt.application.font.family,
         pixelSize: logicalFontSize(Qt.application.font),
         weight: Qt.application.font.weight, italic: Qt.application.font.italic
     }
+    readonly property var buttonFont: theme?.buttons?.font || textFont
+    // Grouped bindings preserve fractional point sizes; Qt.font() truncates them.
+    property font font
+    font.family: textFont.family
+    font.pointSize: textFont.pixelSize * 72 / 96
+    font.weight: textFont.weight
+    font.italic: textFont.italic
     function logicalFontSize(font) {
         // Qt's pixelSize getter rounds point fonts; keep their original precision.
         return font.pointSize > 0 ? font.pointSize * 96 / 72 : font.pixelSize;

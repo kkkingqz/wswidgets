@@ -50,6 +50,7 @@ with tempfile.TemporaryDirectory(prefix="widgets-qml-") as temporary:
             colors = {'background':'#80203040', 'foreground':'#fff0f1f2'}
             assert not cli('setTheme', **colors)['ok'], 'CLI can replace desktop palette'
             assert not adapter.call('setTheme', **{**colors, 'background':'invalid'})['ok'], 'invalid palette accepted'
+            assert not adapter.call('setTheme', **colors, font={'family':'Sans','pixelSize':0,'weight':400,'italic':False})['ok'], 'invalid font accepted'
             assert adapter.call('setTheme', **colors)['result'], 'native theme rejected'
             keys = ['normal','focus','hover','hover+focus','pressed','pressed+focus','pressed+hover','pressed+hover+focus',
                     'checked','checked+focus','checked+hover','checked+hover+focus','checked+pressed','checked+pressed+focus',
@@ -59,10 +60,13 @@ with tempfile.TemporaryDirectory(prefix="widgets-qml-") as temporary:
                        'metrics': {'radius':8,'paddingTop':3,'paddingRight':24,'paddingBottom':3,'paddingLeft':24,
                                    'minimumHeight':28,'transitionMs':0},
                        'font': {'family':'Sans','pixelSize':14.5,'weight':700,'italic':False}}
-            assert adapter.call('setTheme', **colors, buttons=buttons)['result'], 'button theme rejected by runtime socket'
+            font={'family':'Monospace','pixelSize':15.5,'weight':400,'italic':True}
+            assert adapter.call('setTheme', **colors, buttons=buttons, font=font)['result'], 'font/button theme rejected by runtime socket'
             time.sleep(.05)
             log.seek(0)
             assert 'QML socket button applied: #ff123456/#80abcdef' in log.read(), 'socket button theme not rendered'
+            log.seek(0)
+            assert 'QML socket font applied: Monospace/11.625' in log.read(), 'socket font not rendered'
             assert not cli('show', id='unknown')['result']
             assert cli('show', id='example')['result']
             assert adapter.read()['state']['widgets']['example']['phase'] == 'preparing'
