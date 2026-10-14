@@ -53,7 +53,7 @@ export default class WorkstationWidgets extends Extension {
             }, () => { this.instanceId = null; this.buttons.update(null); this.placement.destroy(); });
             this.buttons = new PanelButtons(entries, (id, timestamp) => {
                 this.suppressedUntil = GLib.get_monotonic_time() + 250000;
-                this.placement.timestamp = timestamp;
+                this.placement.recordGesture(id,timestamp);
                 this.client.call('toggle', {id}).then(result => {
                     if (result !== true) Main.notifyError('Виджет не открылся', buttonPresentation(this.client?.snapshot, id, id).error || `Недоступный ID: ${id}`);
                 }).catch(error => Main.notifyError('Workstation Widgets', String(error)));
@@ -82,12 +82,12 @@ export default class WorkstationWidgets extends Extension {
                     (x, y) => global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y),
                     actor => this.buttons.contains(actor), context);
                 if (decision.ownButton) this.suppressedUntil = GLib.get_monotonic_time() + 250000;
-                if (decision.dismiss) this.hideAll();
+                if (decision.dismiss) this.hidePopups();
                 return Clutter.EVENT_PROPAGATE;
             });
-            this.connectSignal(Main.overview, 'showing', () => this.hideAll());
-            this.connectSignal(global.workspace_manager, 'active-workspace-changed', () => this.hideAll());
-            this.connectSignal(Main.sessionMode, 'updated', () => { if (Main.sessionMode.isLocked || Main.sessionMode.isGreeter) this.hideAll(); });
+            this.connectSignal(Main.overview, 'showing', () => this.hidePopups());
+            this.connectSignal(global.workspace_manager, 'active-workspace-changed', () => this.hidePopups());
+            this.connectSignal(Main.sessionMode, 'updated', () => { if (Main.sessionMode.isLocked || Main.sessionMode.isGreeter) this.hidePopups(); });
             this.connectSignal(Main.layoutManager, 'monitors-changed', () => this.placement.reposition());
             this.connectSignal(global.display, 'workareas-changed', () => this.placement.reposition());
             this.sendAnimations = animations;
@@ -109,7 +109,7 @@ export default class WorkstationWidgets extends Extension {
         this.settings = null;
     }
     connectSignal(object, name, callback) { this.signals.push([object, object.connect(name, callback)]); }
-    hideAll() { this.client?.call('hideAll').catch(() => {}); }
+    hidePopups() { this.client?.call('hidePopups').catch(() => {}); }
     active() {
         const snapshot = this.client?.snapshot;
         const id = snapshot?.selectedId;
@@ -126,12 +126,14 @@ export default class WorkstationWidgets extends Extension {
     }
     scheduleFocusCheck() {
         if (this.focusTimer) GLib.source_remove(this.focusTimer);
+        this.focusTimer=0;
+        if (!this.client?.snapshot?.selectedId) return;
         // Let the panel callback record the same user gesture before reacting to focus loss.
         this.focusTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
             this.focusTimer = 0;
             const active = this.active();
             if (active.ownButtonSuppressed) { this.scheduleFocusCheck(); return GLib.SOURCE_REMOVE; }
-            if (shouldDismiss({type: 'focus', inFamily: this.family().includes(global.display.focus_window)}, active)) this.hideAll();
+            if (shouldDismiss({type: 'focus', inFamily: this.family().includes(global.display.focus_window)}, active)) this.hidePopups();
             return GLib.SOURCE_REMOVE;
         });
     }

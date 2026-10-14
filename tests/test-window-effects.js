@@ -8,6 +8,10 @@ function wrapper(original, getSnapshot) {
 }
 const snapshot = () => ({pid: 42, widgets: {example: {}}});
 export const tests = {
+    standaloneWindowKeepsNativeEffects: () => {
+        const animate=wrapper(()=>true,()=>({pid:42,widgets:{normal:{presentation:'window'}}}));
+        assert(animate(actor(42,'workstation-widgets:normal'))===true,'normal widget loses native effects');
+    },
     ownWindowDoesNotAnimate: () => {
         const animate = wrapper(() => true, snapshot);
         assert(animate(actor(42, 'workstation-widgets:example'), ['NORMAL']) === false, 'widget map still animates');

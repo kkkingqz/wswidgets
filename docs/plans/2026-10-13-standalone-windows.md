@@ -34,11 +34,17 @@ Files: WidgetHost.qml, new PopupWidgetHost.qml, WindowWidgetHost.qml, WidgetCont
 extension/windowPlacement.js, windowEffects.mjs, extension.js; QML/placement/effects/socket tests; docs/ws-widgets.md/live-checklist.md.
 Interfaces: WidgetHost retains surface/widgetContext/loaded/progress/scrollRequired;
 WidgetContent supplies context and lazy Loader; normal host actual width/height dispatch RESIZED.
-- [ ] Write actual QML failing checks for independent visible surfaces, native size limits, context/resize/reopen/unload, Escape/close, coexistence and EOF.
-- [ ] Write native-boundary adapter tests forbidding normal-window popup mutations and effect suppression.
-- [ ] Implement host selection/shared content and normal native window; isolate adapter popup dismissal and activation branches.
-- [ ] Run full flake checks, isolated native GNOME move/resize/focus/activation probes and consumer build; fix any failure.
-- [ ] Update authoring docs/live checklist; obtain whole-branch review and fix findings.
+- [x] Write actual QML failing checks for independent visible surfaces, native size limits, context/resize/reopen/unload, Escape/close, coexistence and EOF.
+- [x] Write native-boundary adapter tests forbidding normal-window popup mutations and effect suppression.
+- [x] Implement host selection/shared content and normal native window; isolate adapter popup dismissal and activation branches.
+- [x] Run full flake checks, isolated native GNOME move/resize/focus/activation probes and consumer build; fix any failure.
+- [x] Update authoring docs/live checklist; obtain whole-branch review and fix findings.
 - [ ] Commit/local integrate and install local input without publishing or changing consumer pin; verify ws check widgets.
 
 Execution evidence: ~/.cache/wswidgets-execution/2026-10-13/windows/.
+
+Review/native fixes: normal preparation waits for mapping, then acknowledges once
+activation is requested without requiring focus. Global decoration suppression is
+removed; popup alone sets FramelessWindowHint. Native Escape RED required a
+window-scoped Shortcut instead of a focus-dependent body Keys handler. Actual
+native titlebar/border/caption-close/Escape/EOF probes and full checks are GREEN.

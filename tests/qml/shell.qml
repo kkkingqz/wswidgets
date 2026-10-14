@@ -57,6 +57,55 @@ ShellRoot {
     WidgetHost { id: large; definition: panels.entries[0]; controller: panels }
     WidgetHost { id: small; definition: panels.entries[1]; controller: panels }
     WidgetHost { definition: panels.entries[2]; controller: panels }
+    WidgetController {
+        id: normalPanels
+        entries: [
+            {id:"normal-one",enabled:true,presentation:"window",width:400,height:300,minimumWidth:200,minimumHeight:150,component:"widgets/example/Widget.qml"},
+            {id:"normal-two",enabled:true,presentation:"window",width:320,height:240,minimumWidth:160,minimumHeight:120,component:"widgets/compact/Widget.qml",unloadOnClose:true},
+            {id:"popup",enabled:true,width:320,height:240,component:"widgets/compact/Widget.qml"}]
+        testNow: 0
+    }
+    WidgetHost { id: normalOne; definition: normalPanels.entries[0]; controller: normalPanels }
+    WidgetHost { id: normalTwo; definition: normalPanels.entries[1]; controller: normalPanels }
+    WidgetHost { id: coexistPopup; definition: normalPanels.entries[2]; controller: normalPanels }
+    Timer {
+        id: normalTests
+        property int stage: 0
+        interval: 100; repeat: true; running: false
+        onTriggered: {
+            function check(value,message) {if(!value){console.error(message);Qt.exit(1);}}
+            if (stage===0) {
+                normalPanels.dispatch({type:"ADAPTER_CONNECTED"});
+                normalPanels.command("show","normal-one");normalPanels.command("show","normal-two");normalPanels.command("show","popup");
+            } else if (stage===1) {
+                check(normalOne.surface.visible && normalTwo.surface.visible && coexistPopup.surface.visible,"independent windows do not coexist with popup");
+                check(normalOne.surface.minimumSize.width===200 && normalOne.surface.maximumSize.width>400,"normal window is not resizable");
+                check(!(normalOne.surface.contentItem.Window.window.flags & Qt.FramelessWindowHint),"normal window loses native decorations");
+                check(coexistPopup.surface.contentItem.Window.window.flags & Qt.FramelessWindowHint,"popup requires per-window frameless flag");
+                normalPanels.dispatch({type:"PLACED",id:"normal-one",requestId:normalPanels.state.widgets['normal-one'].requestId});
+                normalPanels.dispatch({type:"PLACED",id:"normal-two",requestId:normalPanels.state.widgets['normal-two'].requestId});
+                // Resize the backing QWindow as a compositor would. FloatingWindow's
+                // implicit dimensions only size hidden windows by design.
+                normalOne.surface.contentItem.Window.window.width=600;
+                normalOne.surface.contentItem.Window.window.height=450;
+            } else if (stage===2) {
+                check(normalOne.widgetContext.contentWidth===568 && normalOne.widgetContext.contentHeight===418,"normal native resize does not reach content");
+                check(normalPanels.state.widgets['normal-one'].panelWidth===600,"normal resize not retained in state");
+                normalPanels.command("hidePopups","");
+                check(normalOne.surface.visible && normalTwo.surface.visible && !coexistPopup.surface.visible,"popup dismissal hides standalone windows");
+                findClose(normalTwo).click();normalPanels.command("hide","normal-one");
+            } else if (stage===3) {
+                check(!normalOne.surface.visible && !normalTwo.surface.visible && !normalTwo.loaded,"close/unload not honored by normal host");
+                normalPanels.command("show","normal-one");normalPanels.command("show","normal-two");
+            } else if (stage===4) {
+                check(normalOne.surface.width===600 && normalOne.surface.height===450 && normalTwo.loaded,"normal reopen resets geometry or loses content");
+                normalPanels.dispatch({type:"ADAPTER_DISCONNECTED"});
+                check(!normalOne.surface.visible && !normalTwo.surface.visible,"EOF leaves standalone windows mapped");
+                console.log("Standalone host resize/context/coexistence/reopen/EOF passed");Qt.exit(0);stop();
+            }
+            stage++;
+        }
+    }
     Connections {
         target: Style
         function onThemeChanged() {
@@ -226,7 +275,7 @@ ShellRoot {
             } else {
                 check(!large.surface.visible && panels.state.widgets.large.phase === "closed", "animations disabled closes");
                 console.log("QML components, failure isolation, context and animation passed");
-                Qt.exit(0);
+                normalTests.start();stop();
             }
             stage++;
         }

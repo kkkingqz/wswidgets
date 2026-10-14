@@ -1,6 +1,46 @@
 # Live evidence — 2026-10-03
 
-Sections before «Socket rewrite — 2026-10-04» describe protocol 1 (`qs ipc`
+Standalone windows infrastructure — implementation started 2026-10-13:
+
+- Existing production catalog still contains the same two popup demos. Extra
+  `presentation=window` entries were enabled only in an isolated test manifest.
+- Real QML hosts support two independent normal windows alongside a popup,
+  resize-driven context, minimum/unbounded maximum size, retained size across
+  reopen, unloadOnClose and adapter EOF. Popup composition/animation and socket
+  regression checks remain passing.
+- Owned headless GNOME50.1 Wayland1280×800 at scale1: both windows open together
+  with NORMAL type, task-list inclusion, native effects and no above flag.
+  Virtual-pointer titlebar drag moves a window by60×40; bottom/right border drags
+  resize the actual logical client area400×300→460×340. These are input gestures,
+  separate from a programmatic compositor geometry probe.
+- Standard Qt Wayland decorations are enabled; only popup backing windows get
+  FramelessWindowHint. A400×300 client has402×340 native frame in this environment.
+  Mutter client-content rect also includes Qt client decorations, so it must not
+  be used as a measurement of the QML content. Qt decorations can differ from GTK.
+- Caption close affects only its window; reopening retains560×420 client size
+  after a separate compositor resize. Escape closes the focused normal window
+  through a window-scoped Shortcut, including focus inside ScrollView.
+- Normal windows survive focus transfer to another application and overview.
+  Both popup demos open alongside them and close through Tab/Space without
+  closing the independent windows. Theme/button/font updates still apply live.
+- Extension disable closes all surfaces via EOF; re-enable reconnects with all
+  closed. Runtime restart also reconnects with all closed. Idle10s after restart:
+  runtime0.00CPU seconds, no theme updates. This is an isolated-session sample,
+  not the original60s production resource acceptance test.
+- Native preparation waits for a mapped actor, then requests activation once;
+  it does not require focus. Regressions cover unmapped actors and overlapping
+  asynchronous normal activations. Popup activation still waits for native focus.
+- Fresh branch review findings (focus race/global decoration suppression) are
+  fixed. Full flake checks pass80GJS tests, Python, manifest, QML and runtime
+  integration; consumer Home Manager build passes. Final installation evidence
+  is recorded below after delivery.
+- Host scale1.5, additional monitors, workspace/lock changes and visual agreement
+  of Qt caption decoration with GTK remain outside this isolated gesture probe.
+  No forced logout, production Shell evaluation or screenshot access was used.
+
+Probe and RED/GREEN logs: ~/.cache/wswidgets-execution/2026-10-13/windows/.
+
+Historical sections below before «Socket rewrite — 2026-10-04» describe protocol 1 (`qs ipc`
 and the adapter lease). Protocol 2 replaced the lease with socket ownership:
 adapter EOF closes widgets immediately; `adapter.connected` replaces `ready`.
 

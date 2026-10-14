@@ -3,4 +3,7 @@ WidgetIpc WidgetIpc.qml
 singleton Style Style.qml
 WidgetRegistry WidgetRegistry.qml
 WidgetHost WidgetHost.qml
+PopupWidgetHost PopupWidgetHost.qml
+WindowWidgetHost WindowWidgetHost.qml
+WidgetContent WidgetContent.qml
 PopupFrame PopupFrame.qml

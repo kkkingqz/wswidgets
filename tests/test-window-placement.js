@@ -24,19 +24,23 @@ async function fixture(run) {
     const previousGlobal = globalThis.global;
     const shell = {display: {focus_window: {}}, get_current_time: () => 1000};
     globalThis.global = shell;
-    let state = createState([{id: 'example', enabled: true, width: 420, height: 580}, {id: 'compact', enabled: true, width: 320, height: 240}], 'runtime', 42);
+    let state = createState([{id: 'example', enabled: true, width: 420, height: 580}, {id: 'compact', enabled: true, width: 320, height: 240},
+        {id:'normal',enabled:true,presentation:'window',width:400,height:300},
+        {id:'normal2',enabled:true,presentation:'window',width:400,height:300}], 'runtime', 42);
     const activationTimes = [];
     let grantFocus = false;
-    const windows = Object.fromEntries(['example', 'compact'].map(id => [id, {
+    let mapped = true;
+    const mutations=[];
+    const windows = Object.fromEntries(['example', 'compact','normal','normal2'].map(id => [id, {
         get_pid: () => 42, get_title: () => `workstation-widgets:${id}`,
         get_work_area_for_monitor: () => ({x: 0, y: 0, width: 1920, height: 1080}),
         protocol_to_stage_rect: r => r, stage_to_protocol_rect: r => r,
-        hide_from_window_list() {}, set_type() {}, make_above() {},
-        move_resize_frame(_user, x, y, width, height) { this.frame = {x, y, width, height}; },
+        hide_from_window_list() {mutations.push(id+':hide');}, set_type() {mutations.push(id+':type');}, make_above() {mutations.push(id+':above');},
+        move_resize_frame(_user, x, y, width, height) { mutations.push(id+':geometry'); this.frame = {x, y, width, height}; },
         get_frame_rect() { return this.frame; },
         activate(timestamp) { activationTimes.push(timestamp); if (grantFocus) shell.display.focus_window = this; },
     }]));
-    shell.get_window_actors = () => Object.values(windows).map(meta_window => ({meta_window}));
+    shell.get_window_actors = () => Object.values(windows).map(meta_window => ({meta_window,is_mapped:()=>mapped}));
     const button = {get_transformed_position: () => [900, 0], get_transformed_size: () => [30, 30]};
     let placement;
     const dispatch = event => { state = reduce(state, event, 0).state; placement.update(state); };
@@ -52,10 +56,51 @@ async function fixture(run) {
         await placement.place(job, state); // geometry handshake
         return job;
     };
-    try { await run({placement, shell, windows, activationTimes, prepare, dispatch, state: () => state, grantFocus: () => {grantFocus = true;}}); }
+    try { await run({placement, shell, windows, mutations, activationTimes, prepare, dispatch, state: () => state, grantFocus: () => {grantFocus = true;},setMapped:value=>{mapped=value;}}); }
     finally { placement.destroy(); if (previousGlobal === undefined) delete globalThis.global; else globalThis.global = previousGlobal; }
 }
 export const tests = {
+    normalActivationWaitsForMappedNativeActor: () => fixture(async ({placement,prepare,state,setMapped,activationTimes}) => {
+        setMapped(false);
+        const job=await prepare('normal');
+        assert(state().widgets.normal.phase==='preparing' && activationTimes.length===0,'activates an unmapped ordinary window');
+        setMapped(true);await placement.place(job,state());
+        assert(state().widgets.normal.phase==='open' && activationTimes.length===1,'mapped window does not complete preparation');
+    }),
+    overlappingNormalActivationsDoNotRequireCurrentFocus: () => fixture(async ({placement,shell,windows,dispatch,state,activationTimes}) => {
+        dispatch({type:'COMMAND',action:'show',id:'normal'});
+        dispatch({type:'COMMAND',action:'show',id:'normal2'});
+        const first=[...placement.jobs.values()].find(j=>j.id==='normal');
+        const second=[...placement.jobs.values()].find(j=>j.id==='normal2');
+        await placement.place(first,state());
+        // Native activation completes after activate() returns. Another window
+        // can acquire focus before the first placement timer polls again.
+        shell.display.focus_window=windows.normal;
+        await placement.place(second,state());
+        shell.display.focus_window=windows.normal2;
+        assert(state().widgets.normal.phase==='open' && state().widgets.normal2.phase==='open',
+            'ordinary windows wait for exclusive focus and can time out');
+        assert(activationTimes.length===2 && placement.jobs.size===0,'normal placement keeps an activation timer');
+    }),
+    normalGestureDoesNotOverwriteQueuedPopupGesture: () => fixture(async ({placement,prepare,state,dispatch,activationTimes,grantFocus}) => {
+        grantFocus();placement.recordGesture('example',77);
+        let job=await prepare('example');await placement.place(job,state());
+        placement.recordGesture('compact',88);dispatch({type:'COMMAND',action:'show',id:'compact'});
+        placement.recordGesture('normal',99);dispatch({type:'COMMAND',action:'show',id:'normal'});
+        job=[...placement.jobs.values()].find(j=>j.id==='normal');await placement.place(job,state());
+        dispatch({type:'FINISHED',id:'example',phase:'closing',requestId:state().widgets.example.requestId});
+        job=[...placement.jobs.values()].find(j=>j.id==='compact');await placement.place(job,state());await placement.place(job,state());
+        assert(activationTimes.join(',')==='77,99,88','independent window gesture overwrites popup queue');
+    }),
+    normalWindowOnlyActivatesAndPreservesNativePolicy: () => fixture(async ({placement,prepare,state,grantFocus,mutations,activationTimes}) => {
+        grantFocus();placement.recordGesture('normal',77);
+        const job=await prepare('normal');
+        if (state().widgets.normal.phase==='preparing') await placement.place(job,state());
+        assert(state().widgets.normal.phase==='open','normal window not acknowledged');
+        assert(mutations.length===0,'normal window received popup mutations: '+mutations);
+        assert(activationTimes.join(',')==='77','normal window activation repeats or loses gesture');
+        placement.reposition();assert(placement.jobs.size===0,'monitor change repositions normal window');
+    }),
     openingWaitsForNativeFocus: () => fixture(async ({placement, shell, windows, prepare, state}) => {
         const job = await prepare('example');
         await placement.place(job, state());
@@ -76,7 +121,7 @@ export const tests = {
         assert(state().widgets.example.phase === 'opening' && activationTimes.length === 1, 'granted focus does not release opening');
     }),
     clickTimestampIsNotReusedForCliOpen: () => fixture(async ({placement, prepare, state, dispatch, activationTimes, grantFocus}) => {
-        grantFocus(); placement.timestamp = 77;
+        grantFocus(); placement.recordGesture('example',77);
         let job = await prepare('example'); await placement.place(job, state());
         dispatch({type: 'COMMAND', action: 'hide', id: 'example'});
         dispatch({type: 'FINISHED', id: 'example', requestId: state().widgets.example.requestId, phase: 'closing'});
@@ -84,18 +129,18 @@ export const tests = {
         assert(activationTimes.join(',') === '77,1000', `stale click timestamp activates later CLI window: ${activationTimes}`);
     }),
     closingClickDoesNotLeaveAnActivationTimestamp: () => fixture(async ({placement, prepare, state, dispatch, activationTimes, grantFocus}) => {
-        grantFocus(); placement.timestamp = 77;
+        grantFocus(); placement.recordGesture('example',77);
         let job = await prepare('example'); await placement.place(job, state());
-        placement.timestamp = 88; // second panel click closes; no placement job
+        placement.recordGesture('example',88); // second panel click closes; no placement job
         dispatch({type: 'COMMAND', action: 'hide', id: 'example'});
         dispatch({type: 'FINISHED', id: 'example', requestId: state().widgets.example.requestId, phase: 'closing'});
         job = await prepare('compact'); await placement.place(job, state());
         assert(activationTimes.join(',') === '77,1000', `closing click leaks its timestamp to CLI: ${activationTimes}`);
     }),
     queuedSwitchKeepsItsOwnClickTimestamp: () => fixture(async ({placement, prepare, state, dispatch, activationTimes, grantFocus}) => {
-        grantFocus(); placement.timestamp = 77;
+        grantFocus(); placement.recordGesture('example',77);
         let job = await prepare('example'); await placement.place(job, state());
-        placement.timestamp = 88;
+        placement.recordGesture('compact',88);
         dispatch({type: 'COMMAND', action: 'show', id: 'compact'});
         dispatch({type: 'FINISHED', id: 'example', requestId: state().widgets.example.requestId, phase: 'closing'});
         job = [...placement.jobs.values()][0];

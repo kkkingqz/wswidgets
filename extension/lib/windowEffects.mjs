@@ -3,7 +3,8 @@ export function matchesWidgetWindow(window, snapshot) {
     const title = window.get_title();
     const prefix = 'workstation-widgets:';
     return typeof title === 'string' && title.startsWith(prefix)
-        && Object.prototype.hasOwnProperty.call(snapshot.widgets, title.slice(prefix.length));
+        && Object.prototype.hasOwnProperty.call(snapshot.widgets, title.slice(prefix.length))
+        && snapshot.widgets[title.slice(prefix.length)].presentation!=='window';
 }
 
 // Installed before adapterReady can map a surface. A late window-type change

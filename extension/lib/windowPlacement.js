@@ -5,9 +5,14 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {placePopup} from './geometry.mjs';
 
 export class WindowPlacement {
-    constructor(client, buttons) { this.client = client; this.buttons = buttons; this.jobs = new Map(); this.timestamp = 0; this.generation = 0; }
+    constructor(client, buttons) { this.client = client; this.buttons = buttons; this.jobs = new Map(); this.gestures = new Map(); this.generation = 0; }
+    recordGesture(id,timestamp) { this.gestures.set(id,timestamp); }
     find(snapshot, id) {
-        return global.get_window_actors().map(a => a.meta_window).find(w => w.get_pid() === snapshot.pid && w.get_title() === `workstation-widgets:${id}`);
+        const actor=global.get_window_actors().find(a => a.meta_window.get_pid()===snapshot.pid && a.meta_window.get_title()===`workstation-widgets:${id}`);
+        // Ordinary toplevels appear before their first buffer is mapped.
+        // Activation at that point is premature in Mutter's native stack.
+        if (snapshot.widgets[id]?.presentation==='window' && !actor?.is_mapped()) return null;
+        return actor?.meta_window;
     }
     update(snapshot) {
         this.snapshot = snapshot;
@@ -23,7 +28,8 @@ export class WindowPlacement {
         }
         // Only a queued switch can still need the panel gesture later. Closing
         // or cancelling a popup must not leave an old activation timestamp.
-        if (!snapshot.pendingId) this.timestamp = 0;
+        for (const id of this.gestures.keys())
+            if (id!==snapshot.pendingId && snapshot.widgets[id]?.phase!=='preparing') this.gestures.delete(id);
     }
     reposition() {
         const snapshot = this.snapshot;
@@ -34,8 +40,8 @@ export class WindowPlacement {
     queueJob(id, state, snapshot, reposition = false) {
             const key = `${snapshot.instanceId}:${id}:${state.requestId}`;
             if (this.jobs.has(key)) return;
-            const job = {id, instance: snapshot.instanceId, requestId: state.requestId, start: GLib.get_monotonic_time(), busy: false, geometry: null, reposition, timestamp: reposition ? 0 : this.timestamp};
-            if (!reposition) this.timestamp = 0;
+            const job = {id, instance: snapshot.instanceId, requestId: state.requestId, start: GLib.get_monotonic_time(), busy: false, geometry: null, reposition, timestamp: reposition ? 0 : (this.gestures.get(id) || 0)};
+            if (!reposition) this.gestures.delete(id);
             this.jobs.set(key, job);
             job.timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 25, () => {
                 if (GLib.get_monotonic_time() - job.start > 1900000) { this.jobs.delete(key); this.fail(job, 'GNOME placement timed out'); return GLib.SOURCE_REMOVE; }
@@ -45,10 +51,22 @@ export class WindowPlacement {
     }
     async place(job, snapshot) {
         const window = this.find(snapshot, job.id);
-        const button = this.buttons.getButton(job.id);
-        if (!window || !button) return;
+        const state = this.snapshot.widgets[job.id];
+        const normal=state?.presentation==='window';
+        const button = normal ? null : this.buttons.getButton(job.id);
+        if (!window || (!normal && !button)) return;
         job.busy = true;
         try {
+            if (normal) {
+                // Ordinary windows may coexist and lose focus immediately.
+                // Discovery plus the activation request completes preparation.
+                if (!job.activated) {
+                    window.activate(job.timestamp || global.get_current_time());
+                    job.activated=true;
+                }
+                await this.client.call('placed',{id:job.id,requestId:job.requestId});
+                return;
+            }
             if (job.activated) {
                 // Activation is asynchronous. Stay in preparing until Mutter
                 // gives us focus, so the old window's focus loss cannot close
@@ -57,7 +75,6 @@ export class WindowPlacement {
                 if (global.display.focus_window === window) await this.client.call('placed', {id:job.id, requestId:job.requestId});
                 return;
             }
-            const state = this.snapshot.widgets[job.id];
             const [x, y] = button.get_transformed_position();
             const [width, height] = button.get_transformed_size();
             const monitor = Main.layoutManager.findMonitorForActor(button);
@@ -92,5 +109,5 @@ export class WindowPlacement {
         } finally { job.busy = false; }
     }
     fail(job, reason) { this.client.call('placementFailed', {id:job.id, requestId:job.requestId, reason}).catch(() => {}); }
-    destroy() { this.generation++; for (const job of this.jobs.values()) GLib.source_remove(job.timer); this.jobs.clear(); this.snapshot = null; }
+    destroy() { this.generation++; for (const job of this.jobs.values()) GLib.source_remove(job.timer); this.jobs.clear(); this.gestures.clear(); this.snapshot = null; }
 }
