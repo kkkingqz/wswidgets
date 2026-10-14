@@ -39,7 +39,7 @@ WidgetContent supplies context and lazy Loader; normal host actual width/height 
 - [x] Implement host selection/shared content and normal native window; isolate adapter popup dismissal and activation branches.
 - [x] Run full flake checks, isolated native GNOME move/resize/focus/activation probes and consumer build; fix any failure.
 - [x] Update authoring docs/live checklist; obtain whole-branch review and fix findings.
-- [ ] Commit/local integrate and install local input without publishing or changing consumer pin; verify ws check widgets.
+- [x] Commit/local integrate and install local input without publishing or changing consumer pin; verify ws check widgets.
 
 Execution evidence: ~/.cache/wswidgets-execution/2026-10-13/windows/.
 
@@ -48,3 +48,9 @@ activation is requested without requiring focus. Global decoration suppression i
 removed; popup alone sets FramelessWindowHint. Native Escape RED required a
 window-scoped Shortcut instead of a focus-dependent body Keys handler. Actual
 native titlebar/border/caption-close/Escape/EOF probes and full checks are GREEN.
+
+Delivery2026-10-14:100c702+7d682aa fast-forwarded into local main. Merged-tree
+flake check passes; installed through ws switch with local input/no-write-lock-file.
+ws check widgets:6PASS/0WARN/0FAIL; service active,NRestarts0; installed QML/JS
+matches source. Consumer lock hash unchanged, no publication. New GNOME login
+is required to load the new extension module.

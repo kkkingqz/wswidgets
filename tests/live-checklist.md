@@ -32,8 +32,13 @@ Standalone windows infrastructure — implementation started 2026-10-13:
   asynchronous normal activations. Popup activation still waits for native focus.
 - Fresh branch review findings (focus race/global decoration suppression) are
   fixed. Full flake checks pass80GJS tests, Python, manifest, QML and runtime
-  integration; consumer Home Manager build passes. Final installation evidence
-  is recorded below after delivery.
+  integration; consumer Home Manager build passes.
+- Delivery2026-10-14: local main contains100c702+7d682aa; merged-tree flake check
+  passes. ws switch with local input/no-write-lock-file succeeds. Installed QML
+  and extension bytes match source; service active,NRestarts0; ws check widgets
+  reports6PASS/0WARN/0FAIL. Both production IDs remain popup. New GNOME login is
+  needed for updated adapter JS. Nothing published; consumer lock remains on
+  remote07e7377, so normal ws switch without the local override restores that pin.
 - Host scale1.5, additional monitors, workspace/lock changes and visual agreement
   of Qt caption decoration with GTK remain outside this isolated gesture probe.
   No forced logout, production Shell evaluation or screenshot access was used.
