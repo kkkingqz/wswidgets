@@ -29,7 +29,7 @@ export default class WorkstationWidgets extends Extension {
         this.errorSignature = '';
         this.effectSnapshot = null;
         try {
-            const root = GLib.build_filenamev([GLib.get_user_data_dir(), 'workstation', 'widgets']);
+            const root = GLib.build_filenamev([GLib.get_user_data_dir(), 'wsconfig', 'widgets']);
             const config = readJson(`${root}/runtime.json`);
             if (config.schemaVersion !== 2 || config.adapter !== 'gnome'
                 || typeof config.socketPath !== 'string') throw new Error('Invalid widget runtime config');
