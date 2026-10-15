@@ -71,14 +71,14 @@ in
       force = true;
     };
 
-    xdg.dataFile."workstation/widgets/manifest.json".source = manifestFile;
+    xdg.dataFile."wsconfig/widgets/manifest.json".source = manifestFile;
     # Every widget of the installed version (shell completion, listings).
-    xdg.dataFile."workstation/widgets/catalog.json".text = builtins.toJSON (import ../catalog.nix);
-    xdg.dataFile."workstation/widgets/runtime.json".text = builtins.toJSON {
+    xdg.dataFile."wsconfig/widgets/catalog.json".text = builtins.toJSON (import ../catalog.nix);
+    xdg.dataFile."wsconfig/widgets/runtime.json".text = builtins.toJSON {
       schemaVersion = 2;
       qsPath = "${runtime}/bin/qs-widgets";
       socketPath = "$XDG_RUNTIME_DIR/workstation-widgets/control.sock";
-      manifestPath = "${config.xdg.dataHome}/workstation/widgets/manifest.json";
+      manifestPath = "${config.xdg.dataHome}/wsconfig/widgets/manifest.json";
       adapter = "gnome";
     };
 

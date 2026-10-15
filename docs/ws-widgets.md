@@ -25,7 +25,7 @@ programs.wswidgets = {
 ```
 
 Модуль устанавливает `ws-widgets`, создаёт manifest/runtime JSON в
-`~/.local/share/workstation/widgets/`, QML в
+`~/.local/share/wsconfig/widgets/`, QML в
 `~/.config/quickshell/workstation-widgets` (из store или, с `qmlCheckout`,
 ссылкой на `quickshell/` checkout), файлы extension в
 `~/.local/share/gnome-shell/extensions/workstation-widgets@local` и user service

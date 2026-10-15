@@ -14,7 +14,7 @@ UNIT = 'workstation-widgets.service'
 
 def config_path():
     root = Path(os.environ.get('XDG_DATA_HOME', str(Path.home() / '.local/share')))
-    return Path(os.environ.get('WS_WIDGETS_RUNTIME', str(root / 'workstation/widgets/runtime.json')))
+    return Path(os.environ.get('WS_WIDGETS_RUNTIME', str(root / 'wsconfig/widgets/runtime.json')))
 
 def load_config():
     value = json.loads(config_path().read_text())
