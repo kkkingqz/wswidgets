@@ -7,3 +7,4 @@ PopupWidgetHost PopupWidgetHost.qml
 WindowWidgetHost WindowWidgetHost.qml
 WidgetContent WidgetContent.qml
 PopupFrame PopupFrame.qml
+Desktop Desktop.qml

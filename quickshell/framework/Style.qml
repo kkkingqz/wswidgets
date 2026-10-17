@@ -5,6 +5,8 @@ QtObject {
     property SystemPalette systemPalette: SystemPalette { colorGroup: SystemPalette.Active }
     property SystemPalette disabledPalette: SystemPalette { colorGroup: SystemPalette.Disabled }
     property var theme: null
+    // light, dark or empty: the desktop scheme from wsdbus (Desktop.qml).
+    property string scheme: ""
     property bool animationsEnabled: true
     readonly property int gutter: 12
     readonly property int padding: 16

@@ -21,6 +21,7 @@ programs.wswidgets = {
   enable = true;
   widgets = [ "example" "compact" ];
   # qmlCheckout = "/home/user/Projects/wswidgets";
+  # desktopCtl = config.programs.wsdbus.ctl;
 };
 ```
 
@@ -33,6 +34,14 @@ programs.wswidgets = {
 остаётся владельцу списка расширений: UUID — `programs.wswidgets.extensionUuid`.
 При первой установке и после изменения кода extension нужен новый вход в GNOME.
 Неизвестный ID в `widgets` останавливает сборку со списком доступных.
+
+`desktopCtl` — абсолютный путь `wsdbus-ctl` ([wsdbus](https://github.com/kkkingqz/wsdbus)).
+С ним runtime следит за рабочим столом через `wsdbus-ctl --json watch`
+(`quickshell/framework/Desktop.qml`): блокировка экрана закрывает popup,
+`appearance.scheme` попадает в `context.colorScheme`. Watcher перезапускается
+через 2 с после выхода; без поставщика wsdbus факты остаются по умолчанию
+(не заблокировано, схема пустая). Оформление кнопок и палитра по-прежнему
+приходят от adapter.
 
 Runtime запускается вместе с graphical-session.target только в GNOME Wayland
 (`ExecCondition`: `XDG_CURRENT_DESKTOP` с GNOME, `WAYLAND_DISPLAY`, нет
@@ -171,7 +180,8 @@ Runtime не следит за файлами QML (`settings.watchFiles: false`)
 
 Widget — Item с обязательным context. Контекст содержит widgetId,
 contentWidth/contentHeight, devicePixelRatio, phase, background, foreground,
-mutedForeground, font и requestClose(). Фон контейнера и цвета текста берутся из
+mutedForeground, font, colorScheme и requestClose(). colorScheme — `light`,
+`dark` или пустая строка: схема рабочего стола из wsdbus. Фон контейнера и цвета текста берутся из
 фактического оформления меню GNOME, включая светлую/тёмную и пользовательскую
 Shell theme. Adapter передаёт палитру при подключении и изменении стиля;
 открытые окна обновляются без повторного открытия и без периодического опроса.

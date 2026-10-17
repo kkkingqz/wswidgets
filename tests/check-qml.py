@@ -24,6 +24,30 @@ with tempfile.TemporaryDirectory(prefix="widgets-qml-") as temporary:
     result = subprocess.run([sys.argv[1], "-p", str(config)], env=env, timeout=15)
     if result.returncode:
         sys.exit(result.returncode)
+    # Desktop facts through a fake wsdbus-ctl (quickshell/framework/Desktop.qml).
+    desktop = Path(temporary) / "desktop"
+    shutil.copytree(root / "quickshell", desktop)
+    desktop.chmod(0o755)
+    (desktop / "shell.qml").unlink()
+    shutil.copy(root / "tests/qml/desktop/shell.qml", desktop / "shell.qml")
+    fake = Path(temporary) / "wsdbus-ctl"
+    fake.write_text(f"""#!{sys.executable}
+import json, sys, time
+assert sys.argv[1:] == ["--json", "watch"], sys.argv
+def emit(frame): print(json.dumps(frame), flush=True)
+emit({{"snapshot": True, "revision": 1, "provider": "fake", "version": 1, "capabilities": [],
+      "facts": {{"session.locked": False, "appearance.scheme": "dark"}}, "windows": []}})
+time.sleep(0.3)
+emit({{"revision": 2, "windows": [], "removed": ["5"]}})
+emit({{"revision": 3, "facts": {{"session.locked": True}}, "removed": []}})
+time.sleep(0.3)
+emit({{"revision": 4, "facts": {{}}, "removed": ["appearance.scheme"]}})
+time.sleep(10)
+""")
+    fake.chmod(0o755)
+    result = subprocess.run([sys.argv[1], "-p", str(desktop)], env=dict(env, WIDGETS_DESKTOP_CTL=str(fake)), timeout=15)
+    if result.returncode:
+        sys.exit(result.returncode)
     env["WIDGETS_IPC_TEST"] = "1"
     from socket_client import Peer
     endpoint = Path(temporary)/"control.sock"

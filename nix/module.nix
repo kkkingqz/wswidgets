@@ -44,6 +44,16 @@ in
         null uses the QML of the flake input.
       '';
     };
+    desktopCtl = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      example = "/nix/store/…-wsdbus-ctl/bin/wsdbus-ctl";
+      description = ''
+        Absolute path of wsdbus-ctl. When set, the runtime follows the
+        desktop through `wsdbus-ctl --json watch`: the lock screen hides the
+        popups and the colour scheme reaches the widgets (context.colorScheme).
+      '';
+    };
     extensionUuid = lib.mkOption {
       type = lib.types.str;
       readOnly = true;
@@ -56,6 +66,9 @@ in
     assertions = [{
       assertion = cfg.qmlCheckout == null || lib.hasPrefix "/" cfg.qmlCheckout;
       message = "programs.wswidgets.qmlCheckout must be an absolute path";
+    } {
+      assertion = cfg.desktopCtl == null || lib.hasPrefix "/" cfg.desktopCtl;
+      message = "programs.wswidgets.desktopCtl must be an absolute path";
     }];
 
     home.packages = [ packages.cli ];
@@ -94,7 +107,8 @@ in
       };
       Service = {
         # A manifest change changes the unit, so Home Manager restarts the runtime.
-        Environment = [ "WIDGETS_MANIFEST=${manifestFile}" "WIDGETS_SOCKET=%t/workstation-widgets/control.sock" ];
+        Environment = [ "WIDGETS_MANIFEST=${manifestFile}" "WIDGETS_SOCKET=%t/workstation-widgets/control.sock" ]
+          ++ lib.optional (cfg.desktopCtl != null) "WIDGETS_DESKTOP_CTL=${cfg.desktopCtl}";
         RuntimeDirectory = "workstation-widgets";
         RuntimeDirectoryMode = "0700";
         UMask = "0077";

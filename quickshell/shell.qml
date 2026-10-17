@@ -17,6 +17,7 @@ ShellRoot {
     WidgetRegistry { id: registry; onEntriesChanged: root.configure() }
     WidgetController { id: widgetController }
     WidgetIpc { controller: widgetController }
+    Desktop { controller: widgetController }
     Variants {
         model: root.definitions.filter(entry => entry.enabled)
         WidgetHost {

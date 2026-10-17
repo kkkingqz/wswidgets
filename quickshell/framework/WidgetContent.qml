@@ -36,6 +36,7 @@ Loader {
         readonly property color foreground: Style.foreground
         readonly property color mutedForeground: Style.mutedForeground
         readonly property font font: Style.font
+        readonly property string colorScheme: Style.scheme
         function requestClose() { root.controller.command("hide",widgetId); }
     }
     onStatusChanged: {
